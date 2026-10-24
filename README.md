@@ -61,6 +61,10 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 
 ## Documentation
 
+### Tools and Technologies
+
+[Read the technology guide](docs/technologies.md) for what each tool does, why we use it, and how it fits this project, with examples and implemented versus planned status.
+
 ### Development Setup
 
 [Read the setup guide](docs/setup.md) for tool installation, local testing, and Terraform/Terragrunt configuration.
