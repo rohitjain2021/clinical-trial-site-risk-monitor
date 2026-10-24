@@ -1,18 +1,23 @@
 mock_provider "aws" {
   mock_resource "aws_iam_openid_connect_provider" {
     defaults = {
-      arn = "arn:aws:iam::697078878651:oidc-provider/token.actions.githubusercontent.com"
+      arn = "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
     }
   }
   mock_resource "aws_iam_policy" {
     defaults = {
-      arn = "arn:aws:iam::697078878651:policy/clinical-trial-site-risk-monitor-dev-lambda-boundary"
+      arn = "arn:aws:iam::123456789012:policy/clinical-trial-site-risk-monitor-dev-lambda-boundary"
     }
   }
 }
 
 variables {
-  api_gateway_id = "testapi"
+  api_gateway_id       = "testapi"
+  aws_account_id       = "123456789012"
+  state_bucket         = "clinical-trial-site-risk-monitor-tfstate-dev-123456789012"
+  github_repository    = "example-owner/example-repository"
+  github_owner_id      = "123456"
+  github_repository_id = "789012"
 }
 
 run "scoped_github_access" {

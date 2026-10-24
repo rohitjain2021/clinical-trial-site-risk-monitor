@@ -29,6 +29,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, Node 24
         with:
           persist-credentials: false
+          fetch-depth: 0
+      - name: Scan Git history for credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          scanner_dir="$RUNNER_TEMP/gitleaks"
+          mkdir -p "$scanner_dir"
+          cd "$scanner_dir"
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz \
+            --output gitleaks_8.30.1_linux_x64.tar.gz
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt \
+            --output checksums.txt
+          sha256sum --check --ignore-missing checksums.txt
+          tar -xzf gitleaks_8.30.1_linux_x64.tar.gz gitleaks
+          cd "$GITHUB_WORKSPACE"
+          "$scanner_dir/gitleaks" git --redact --log-opts=--all
       - uses: ./.github/actions/setup-tools
       - name: Check Python response contract
         env:
@@ -75,12 +93,45 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-tools
+      - name: Load private deployment identifiers
+        env:
+          PROJECT_AWS_ACCOUNT_ID: ${{ secrets.PROJECT_AWS_ACCOUNT_ID }}
+          PROJECT_TF_STATE_BUCKET: ${{ secrets.PROJECT_TF_STATE_BUCKET }}
+          PROJECT_API_GATEWAY_ID: ${{ secrets.PROJECT_API_GATEWAY_ID }}
+          DEPLOY_GITHUB_OWNER_ID: ${{ github.repository_owner_id }}
+          DEPLOY_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$PROJECT_AWS_ACCOUNT_ID"
+          test -n "$PROJECT_TF_STATE_BUCKET"
+          test -n "$PROJECT_API_GATEWAY_ID"
+          echo "::add-mask::$PROJECT_AWS_ACCOUNT_ID"
+          echo "::add-mask::$PROJECT_TF_STATE_BUCKET"
+          echo "::add-mask::$PROJECT_API_GATEWAY_ID"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          # Recreate only the ignored deployment settings needed by Terragrunt.
+          values = {
+              "aws_account_id": os.environ["PROJECT_AWS_ACCOUNT_ID"],
+              "state_bucket": os.environ["PROJECT_TF_STATE_BUCKET"],
+              "github_repository": os.environ["GITHUB_REPOSITORY"],
+              "github_owner_id": os.environ["DEPLOY_GITHUB_OWNER_ID"],
+              "github_repository_id": os.environ["DEPLOY_GITHUB_REPOSITORY_ID"],
+          }
+          content = "locals {\n" + "".join(f"  {key} = {json.dumps(value)}\n" for key, value in values.items()) + "}\n"
+          Path("infrastructure/live/dev/deployment.local.hcl").write_text(content)
+          PY
       - name: Authenticate to AWS using OIDC
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          role-to-assume: arn:aws:iam::697078878651:role/clinical-trial-site-risk-monitor-dev-github-deploy
+          role-to-assume: arn:aws:iam::${{ secrets.PROJECT_AWS_ACCOUNT_ID }}:role/clinical-trial-site-risk-monitor-dev-github-deploy
           aws-region: us-east-1
-          allowed-account-ids: '697078878651'
+          allowed-account-ids: ${{ secrets.PROJECT_AWS_ACCOUNT_ID }}
+          mask-aws-account-id: true
           role-session-name: github-${{ github.run_id }}
       - name: Initialize and validate dev Lambda
         run: |
@@ -93,13 +144,8 @@ jobs:
           terragrunt --working-dir infrastructure/live/dev/lambda plan -input=false \
             -lock-timeout=60s -no-color "-out=$RUNNER_TEMP/dev-lambda.tfplan" |
             tee "$RUNNER_TEMP/dev-lambda-plan.txt"
-          {
-            echo '### Dev Lambda plan'
-            echo "Commit: $GITHUB_SHA"
-            echo '```text'
-            cat "$RUNNER_TEMP/dev-lambda-plan.txt"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          # Keep the plan in this runner; do not publish raw plans or state as artifacts.
+          echo 'Dev plan completed. Review the masked job logs.' >> "$GITHUB_STEP_SUMMARY"
       # A push only plans. Maintainers explicitly opt into apply using Run workflow.
       - name: Apply saved plan after manual deployment approval
         if: github.event_name == 'workflow_dispatch' && inputs.deploy == true

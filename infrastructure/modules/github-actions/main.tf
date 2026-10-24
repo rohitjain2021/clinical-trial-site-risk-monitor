@@ -15,18 +15,18 @@ variable "tags" {
 }
 
 locals {
-  account_id       = "697078878651"
+  account_id       = var.aws_account_id
   region           = "us-east-1"
   function_name    = "clinical-trial-site-risk-monitor-dev"
   function_arn     = "arn:aws:lambda:${local.region}:${local.account_id}:function:${local.function_name}"
   execution_role   = "arn:aws:iam::${local.account_id}:role/${local.function_name}-execution"
   log_group_arn    = "arn:aws:logs:${local.region}:${local.account_id}:log-group:/aws/lambda/${local.function_name}"
-  state_bucket_arn = "arn:aws:s3:::clinical-trial-site-risk-monitor-tfstate-dev-${local.account_id}"
+  state_bucket_arn = "arn:aws:s3:::${var.state_bucket}"
   state_object_arn = "${local.state_bucket_arn}/dev/lambda/terraform.tfstate"
   # Support both GitHub subject formats, each restricted to this repository and main.
   trusted_subjects = [
-    "repo:rohitjain2021/clinical-trial-site-risk-monitor:ref:refs/heads/main",
-    "repo:rohitjain2021@44851658/clinical-trial-site-risk-monitor@1431779104:ref:refs/heads/main",
+    "repo:${var.github_repository}:ref:refs/heads/main",
+    "repo:${split("/", var.github_repository)[0]}@${var.github_owner_id}/${split("/", var.github_repository)[1]}@${var.github_repository_id}:ref:refs/heads/main",
   ]
 }
 

@@ -9,3 +9,25 @@ __pycache__/
 infrastructure/modules/lambda/lambda.zip
 infrastructure/state/
 infrastructure/bootstrap/state-backend/backend.tf
+
+# Local deployment settings, credentials, keys, and real uploaded data.
+*.local.hcl
+.env
+.env.*
+!.env.example
+.aws/
+credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.p8
+*.ppk
+id_rsa
+id_ed25519
+terraform.tfvars
+terraform.tfvars.json
+*.auto.tfvars
+*.auto.tfvars.json
+data/private/
+uploads/

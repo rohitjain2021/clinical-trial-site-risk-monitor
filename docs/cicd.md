@@ -2,6 +2,8 @@
 
 The workflow is defined in [lambda.yml](../.github/workflows/lambda.yml). GitHub Actions authenticates to AWS using OIDC, then runs Terragrunt and Terraform against the development Lambda's shared S3 state. No AWS access-key secrets are needed.
 
+Deployment identifiers come from encrypted Actions secrets and an ignored local HCL file. CI masks them before planning and scans Git history with Gitleaks. See the [security guide](security.md) for the required secrets and existing-history limitations.
+
 ## Workflow Behavior
 
 | Trigger | Checks | AWS actions |
@@ -11,7 +13,7 @@ The workflow is defined in [lambda.yml](../.github/workflows/lambda.yml). GitHub
 | Manual run on `main`, `deploy` unchecked | Same checks | Generate a Lambda plan |
 | Manual run on `main`, `deploy` checked | Same checks | Plan, apply, invoke Lambda, verify signed API requests and unsigned denial |
 
-The plan appears in the run logs and job summary. Pushes never apply infrastructure changes. To deploy, first review a main-branch plan, then open **Actions → Lambda CI and dev deployment → Run workflow**, select `main`, and check `deploy`. This is an explicit deployment approval by a repository maintainer, not a GitHub Environment required-reviewer gate. The manual run creates a fresh plan for the selected commit and applies that plan in the same job; it does not reuse an earlier run's plan. Add a protected environment and matching OIDC trust through infrastructure as code if separate reviewer approval is later required.
+The plan appears in masked run logs; raw plan output is not copied to the job summary. Pushes never apply infrastructure changes. To deploy, first review a main-branch plan, then open **Actions → Lambda CI and dev deployment → Run workflow**, select `main`, and check `deploy`. This is an explicit deployment approval by a repository maintainer, not a GitHub Environment required-reviewer gate. The manual run creates a fresh plan for the selected commit and applies that plan in the same job; it does not reuse an earlier run's plan. Add a protected environment and matching OIDC trust through infrastructure as code if separate reviewer approval is later required.
 
 The AWS job is limited to `main`, uses a repository-specific concurrency group, and does not cancel a running deployment. S3 locking also serializes Terraform state operations. Terraform manages Lambda deployment; the AWS CLI invocation afterward is a functional check, not infrastructure creation.
 

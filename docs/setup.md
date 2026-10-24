@@ -2,6 +2,8 @@
 
 This guide covers local setup on Windows using PowerShell. We will add instructions for each tool as it is introduced into the project.
 
+Before running Terragrunt, create the ignored `infrastructure/live/dev/deployment.local.hcl` from `deployment.example.hcl` and supply your environment's identifiers. Preserve existing local settings instead of overwriting them. See the [security guide](security.md) for configuration and GitHub Actions secret requirements.
+
 ## 1. Install Terraform
 
 Terraform provisions the AWS infrastructure for this project. It is a standalone command-line tool, installed separately from Python packages in `requirements.txt`.
@@ -151,13 +153,13 @@ infrastructure/
   state/                      # Bootstrap local state and backups; ignored by Git
 ```
 
-The development configuration targets AWS account `697078878651` in `us-east-1`. The generated provider uses `allowed_account_ids` to reject credentials for another account. Credentials come from your AWS configuration or environment, never from committed files. If using a named profile, set `$env:AWS_PROFILE` to that profile before running these commands.
+The development configuration targets AWS account `<AWS_ACCOUNT_ID>` in `us-east-1`. The generated provider uses `allowed_account_ids` to reject credentials for another account. Credentials come from your AWS configuration or environment, never from committed files. If using a named profile, set `$env:AWS_PROFILE` to that profile before running these commands.
 
 Terragrunt explicitly runs Terraform and passes the absolute Python source path so packaging works from its disposable cache. The planned function name is `clinical-trial-site-risk-monitor-dev`, with 14-day log retention and project, environment, and management tags.
 
 ### State Storage
 
-Application state uses S3 bucket `clinical-trial-site-risk-monitor-tfstate-dev-697078878651` in `us-east-1`. Lambda's state key is `dev/lambda/terraform.tfstate`. Terraform native S3 locking uses the corresponding `.tflock` object; this requires Terraform 1.10 or later and does not need DynamoDB.
+Application state uses S3 bucket `clinical-trial-site-risk-monitor-tfstate-dev-<AWS_ACCOUNT_ID>` in `us-east-1`. Lambda's state key is `dev/lambda/terraform.tfstate`. Terraform native S3 locking uses the corresponding `.tflock` object; this requires Terraform 1.10 or later and does not need DynamoDB.
 
 The [backend bootstrap guide](../infrastructure/bootstrap/state-backend/README.md) explains how Terraform provisions encryption, versioning, disabled ACLs, public-access blocking, HTTPS-only access, and deletion protection. Run its bootstrap steps before initializing an application unit in a new account. This bucket is for infrastructure state, not patient or trial-site data.
 

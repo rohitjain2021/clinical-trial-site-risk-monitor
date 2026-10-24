@@ -1,7 +1,8 @@
-# Account and region verified for this project's development environment.
+# Deployment identifiers come from an ignored file, created locally or by CI.
 locals {
+  deployment       = read_terragrunt_config("${get_terragrunt_dir()}/deployment.local.hcl").locals
   environment_name = "dev"
   aws_region       = "us-east-1"
-  aws_account_id   = "697078878651"
-  state_bucket     = "clinical-trial-site-risk-monitor-tfstate-dev-697078878651"
+  aws_account_id   = local.deployment.aws_account_id
+  state_bucket     = local.deployment.state_bucket
 }

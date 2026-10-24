@@ -1,6 +1,6 @@
 # Development Terraform State Backend
 
-Bucket: **`clinical-trial-site-risk-monitor-tfstate-dev-697078878651`**, in `us-east-1`, account `697078878651`.
+Bucket: **`clinical-trial-site-risk-monitor-tfstate-dev-<AWS_ACCOUNT_ID>`**, in `us-east-1`, account `<AWS_ACCOUNT_ID>`.
 
 The name identifies the project, Terraform state purpose, development environment, and owning account. It stores infrastructure state and lock objects, not clinical data or application uploads.
 
