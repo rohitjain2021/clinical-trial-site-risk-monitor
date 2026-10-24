@@ -1,0 +1,112 @@
+name: Lambda CI and dev deployment
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: 'Approve deployment of the selected main commit to dev'
+        required: true
+        type: boolean
+        default: false
+
+# Pull requests have no OIDC permission and cannot assume the AWS deployment role.
+permissions:
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: 'true'
+  TF_INPUT: 'false'
+  AWS_REGION: us-east-1
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Check Python response contract
+        env:
+          PYTHONPATH: services/lambda
+        run: |
+          python -c "import json; from handler import lambda_handler; response = lambda_handler({}, None); assert response['statusCode'] == 200; assert response['headers']['Content-Type'] == 'application/json'; assert json.loads(response['body'])['status'] == 'ok'; print('Lambda health response passed')"
+      - name: Check Terraform and Terragrunt formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform fmt -check -recursive infrastructure/modules
+          terraform fmt -check infrastructure/bootstrap/state-backend/main.tf
+          rg --files --hidden -g '*.hcl' -g '!.terraform.lock.hcl' infrastructure |
+            while IFS= read -r config; do
+              terragrunt hcl fmt --check --file "$config"
+            done
+      - name: Validate modules and run mocked security tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          for module in infrastructure/modules/lambda infrastructure/modules/github-actions infrastructure/bootstrap/state-backend; do
+            terraform -chdir="$module" init -backend=false -input=false
+            terraform -chdir="$module" validate
+            terraform -chdir="$module" test
+          done
+
+  dev:
+    needs: checks
+    # AWS additionally enforces main in the OIDC subject; PR and feature refs are rejected.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: clinical-trial-site-risk-monitor-dev-lambda
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Authenticate to AWS using OIDC
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::697078878651:role/clinical-trial-site-risk-monitor-dev-github-deploy
+          aws-region: us-east-1
+          allowed-account-ids: '697078878651'
+          role-session-name: github-${{ github.run_id }}
+      - name: Initialize and validate dev Lambda
+        run: |
+          terragrunt --working-dir infrastructure/live/dev/lambda init -input=false
+          terragrunt --working-dir infrastructure/live/dev/lambda validate
+      - name: Plan dev Lambda
+        shell: bash
+        run: |
+          set -euo pipefail
+          terragrunt --working-dir infrastructure/live/dev/lambda plan -input=false \
+            -lock-timeout=60s -no-color "-out=$RUNNER_TEMP/dev-lambda.tfplan" |
+            tee "$RUNNER_TEMP/dev-lambda-plan.txt"
+          {
+            echo '### Dev Lambda plan'
+            echo "Commit: $GITHUB_SHA"
+            echo '```text'
+            cat "$RUNNER_TEMP/dev-lambda-plan.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      # A push only plans. Maintainers explicitly opt into apply using Run workflow.
+      - name: Apply saved plan after manual deployment approval
+        if: github.event_name == 'workflow_dispatch' && inputs.deploy == true
+        run: |
+          terragrunt --working-dir infrastructure/live/dev/lambda apply -input=false "$RUNNER_TEMP/dev-lambda.tfplan"
+      - name: Verify deployed Lambda response
+        if: github.event_name == 'workflow_dispatch' && inputs.deploy == true
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws lambda invoke --function-name clinical-trial-site-risk-monitor-dev \
+            --payload '{}' "$RUNNER_TEMP/lambda-response.json" > "$RUNNER_TEMP/lambda-invoke.json"
+          python -c "import json, os, pathlib; root = pathlib.Path(os.environ['RUNNER_TEMP']); metadata = json.loads((root / 'lambda-invoke.json').read_text()); assert metadata['StatusCode'] == 200 and 'FunctionError' not in metadata; response = json.loads((root / 'lambda-response.json').read_text()); assert response['statusCode'] == 200; assert json.loads(response['body'])['status'] == 'ok'; print('Deployed Lambda health response passed')"

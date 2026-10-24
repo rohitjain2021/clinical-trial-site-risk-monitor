@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+.terraform/
+.terragrunt-cache/
+*.tfstate
+*.tfstate.*
+*.tfplan
+infrastructure/modules/lambda/lambda.zip
+infrastructure/state/
+infrastructure/bootstrap/state-backend/backend.tf

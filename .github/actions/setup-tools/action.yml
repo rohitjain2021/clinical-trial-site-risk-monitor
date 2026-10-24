@@ -1,0 +1,28 @@
+name: Set up project tools
+description: Install pinned Python, Terraform, and checksum-verified Terragrunt for CI.
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      with:
+        python-version: '3.13'
+    - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      with:
+        terraform_version: '1.16.6'
+        terraform_wrapper: false
+    - name: Install Terragrunt 1.1.6
+      shell: bash
+      run: |
+        set -euo pipefail
+        install_dir="$RUNNER_TEMP/terragrunt-install"
+        mkdir -p "$install_dir"
+        cd "$install_dir"
+        curl --fail --silent --show-error --location --retry 3 \
+          https://github.com/gruntwork-io/terragrunt/releases/download/v1.1.6/terragrunt_linux_amd64 \
+          --output terragrunt_linux_amd64
+        curl --fail --silent --show-error --location --retry 3 \
+          https://github.com/gruntwork-io/terragrunt/releases/download/v1.1.6/SHA256SUMS \
+          --output SHA256SUMS
+        sha256sum --check --ignore-missing SHA256SUMS
+        install -m 0755 terragrunt_linux_amd64 terragrunt
+        echo "$install_dir" >> "$GITHUB_PATH"

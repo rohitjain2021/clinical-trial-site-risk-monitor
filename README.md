@@ -6,6 +6,10 @@ Clinical trial site risk monitoring platform using AWS, Kubernetes, Snowflake, T
 
 See the [development setup guide](docs/setup.md) for installation and verification instructions, starting with Terraform on Windows.
 
+## CI/CD
+
+GitHub Actions runs checks on pull requests and produces a development deployment plan on `main`. An explicit manual workflow run deploys the Lambda through Terragrunt and Terraform, using OIDC authentication and S3 state locking. See the [CI/CD guide](docs/cicd.md) for workflow behavior and AWS permissions.
+
 ## Problem Statement
 
 Clinical trials are often conducted across multiple hospitals, clinics, and research sites. Each site is expected to meet operational targets such as patient enrollment goals, study timelines, protocol compliance, and timely issue resolution.
