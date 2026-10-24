@@ -23,10 +23,10 @@ env:
 
 jobs:
   checks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, Node 24
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-tools
@@ -62,7 +62,7 @@ jobs:
     needs: checks
     # AWS additionally enforces main in the OIDC subject; PR and feature refs are rejected.
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: read
@@ -71,7 +71,7 @@ jobs:
       group: clinical-trial-site-risk-monitor-dev-lambda
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, Node 24
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-tools
