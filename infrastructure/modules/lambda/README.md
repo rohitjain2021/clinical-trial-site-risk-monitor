@@ -1,6 +1,6 @@
 # Lambda Module
 
-Packages the repository's Python health handler and defines a Lambda function, a dedicated execution role, an inline logging policy, and a CloudWatch log group.
+Packages the Python handler and defines Lambda, its execution role and logging policy, CloudWatch log groups, and an IAM-authenticated HTTP API. See the [API guide](../../../docs/api.md) for routes and the validation-only POST contract.
 
 ## Resources and Permissions
 
@@ -12,7 +12,7 @@ Packages the repository's Python health handler and defines a Lambda function, a
 - Terraform creates the log group before the function, so the execution role does not receive `logs:CreateLogGroup` or log-deletion permissions.
 - Logs have configurable finite retention (14 days by default).
 
-No AWS managed policies, API invocation permissions, function URL, VPC permissions, or access to Bedrock, Snowflake, or other services are configured. Add permissions only when the function needs a specific integration. The execution role controls AWS API access; it does not restrict outbound internet traffic.
+API Gateway invocation grants are restricted to the source account, API ID, development stage, method, and path. Both routes require IAM authentication and have throttling and metadata-only access logs. No AWS managed policies, function URL, VPC permissions, or access to Bedrock, Snowflake, or storage services are configured. The execution role controls AWS API access; it does not restrict outbound internet traffic.
 
 The identity running Terraform is separate from the execution role. It needs permissions to manage these resources and `iam:PassRole` restricted to this execution role, with `iam:PassedToService` set to `lambda.amazonaws.com`. This module does not grant deployment permissions to your user. The development Terragrunt unit also passes `permissions_boundary_arn`, provisioned by the GitHub access stack, to cap the execution role at logging permissions even if CI edits its inline policy.
 
@@ -48,7 +48,7 @@ module "health_lambda" {
 
 This is a usage example; the environment root and Terragrunt configuration will be added separately. When using Terragrunt's source cache, explicitly pass `source_file` as an absolute path to the repository's `services/lambda/handler.py`. The module's relative default is intended for direct use within this repository.
 
-Inputs: required `function_name`; optional `source_file`, `log_retention_days`, `permissions_boundary_arn`, and `tags`. Outputs: `function_name`, `function_arn`, `execution_role_arn`, and `log_group_name`.
+Inputs: required `function_name`; optional `source_file`, `log_retention_days`, `permissions_boundary_arn`, and `tags`. Outputs: `function_name`, `function_arn`, `execution_role_arn`, `log_group_name`, `api_gateway_id`, `api_base_url`, and `api_execution_arn`.
 
 ## Local Validation
 

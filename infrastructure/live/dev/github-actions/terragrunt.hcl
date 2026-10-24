@@ -6,3 +6,12 @@ include "root" {
 terraform {
   source = "${get_repo_root()}/infrastructure/modules/github-actions"
 }
+
+# The API is initially bootstrapped by an operator so CI can use an exact API ARN.
+dependency "lambda" {
+  config_path = "../lambda"
+}
+
+inputs = {
+  api_gateway_id = dependency.lambda.outputs.api_gateway_id
+}

@@ -9,7 +9,7 @@ The workflow is defined in [lambda.yml](../.github/workflows/lambda.yml). GitHub
 | Pull request | Python health response, formatting, Terraform validation, mocked security tests | None; no OIDC permission |
 | Push to `main` | Same checks | Authenticate and generate a Lambda plan |
 | Manual run on `main`, `deploy` unchecked | Same checks | Generate a Lambda plan |
-| Manual run on `main`, `deploy` checked | Same checks | Plan, apply that saved plan, invoke Lambda, check health response |
+| Manual run on `main`, `deploy` checked | Same checks | Plan, apply, invoke Lambda, verify signed API requests and unsigned denial |
 
 The plan appears in the run logs and job summary. Pushes never apply infrastructure changes. To deploy, first review a main-branch plan, then open **Actions → Lambda CI and dev deployment → Run workflow**, select `main`, and check `deploy`. This is an explicit deployment approval by a repository maintainer, not a GitHub Environment required-reviewer gate. The manual run creates a fresh plan for the selected commit and applies that plan in the same job; it does not reuse an earlier run's plan. Add a protected environment and matching OIDC trust through infrastructure as code if separate reviewer approval is later required.
 
@@ -48,8 +48,8 @@ This initial stack adds four resources. After deployment a plan should report no
 
 ## Validation and Activation
 
-Local validation includes mocked IAM/security tests, Terraform validation, a no-change plan for the deployed access stack, and `actionlint` validation of the workflow. The Lambda plan still proposes four resources; adding CI access does not deploy the application.
+Local validation includes mocked IAM/security tests, Terraform validation, a no-change plan for the deployed access stack, and `actionlint` validation of the workflow. The Lambda unit now includes the minimal API Gateway infrastructure; see the [API guide](api.md) for its routes and operator bootstrap order.
 
-The workflow becomes available after these files are pushed and merged to `main`. The first main run verifies GitHub-to-AWS OIDC authentication and the plan using the actual deployment role. Until that run, end-to-end authentication and deployment permissions have not been proven in GitHub Actions. If AWS reports a missing permission, add only the required scoped permission to Terraform and redeploy the access stack as an operator.
+GitHub-to-AWS authentication and the initial Lambda deployment have passed in GitHub Actions. New API smoke tests run after the API change is merged and the next manual deployment is triggered. The operator-managed API permissions restrict CI to the exact API ID; the GitHub access stack reads that ID from the Lambda unit's remote state. If AWS reports a missing permission, add only the required scoped permission to Terraform and redeploy the access stack as an operator.
 
 References: [GitHub OIDC with AWS](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws), [AWS Lambda authorization](https://docs.aws.amazon.com/service-authorization/latest/reference/list_lambda.html), and [Terraform S3 backend permissions](https://developer.hashicorp.com/terraform/language/backend/s3).

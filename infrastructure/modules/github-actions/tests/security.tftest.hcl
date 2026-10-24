@@ -11,6 +11,10 @@ mock_provider "aws" {
   }
 }
 
+variables {
+  api_gateway_id = "testapi"
+}
+
 run "scoped_github_access" {
   command = apply
 
@@ -37,5 +41,15 @@ run "scoped_github_access" {
   assert {
     condition     = !anytrue([for statement in jsondecode(aws_iam_role_policy.deployment.policy).Statement : can(contains(tolist(statement.Action), "iam:DeleteRolePermissionsBoundary")) ? contains(tolist(statement.Action), "iam:DeleteRolePermissionsBoundary") : statement.Action == "iam:DeleteRolePermissionsBoundary"])
     error_message = "CI must not be allowed to remove the execution role's boundary."
+  }
+
+  assert {
+    condition     = toset(jsondecode(aws_iam_role_policy.api[0].policy).Statement[0].Resource) == toset(["arn:aws:apigateway:us-east-1::/apis/testapi", "arn:aws:apigateway:us-east-1::/apis/testapi/*", "arn:aws:apigateway:us-east-1::/tags/arn:aws:apigateway:us-east-1::/apis/testapi", "arn:aws:apigateway:us-east-1::/tags/arn:aws:apigateway:us-east-1::/apis/testapi/*"])
+    error_message = "CI must manage only the exact existing API, without API collection access."
+  }
+
+  assert {
+    condition     = jsondecode(aws_cloudwatch_log_resource_policy.api.policy_document).Statement[0].Resource == "${local.api_log_group_arn}:log-stream:*" && jsondecode(aws_cloudwatch_log_resource_policy.api.policy_document).Statement[0].Condition.StringEquals["aws:SourceAccount"] == local.account_id
+    error_message = "Log delivery must restrict the destination and source account."
   }
 }
