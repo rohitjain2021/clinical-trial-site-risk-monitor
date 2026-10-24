@@ -2,18 +2,6 @@
 
 Clinical trial site risk monitoring platform using AWS, Kubernetes, Snowflake, Terraform, Terragrunt, and AI-driven risk analysis.
 
-## Development Setup
-
-See the [development setup guide](docs/setup.md) for installation and verification instructions, starting with Terraform on Windows.
-
-## CI/CD
-
-GitHub Actions runs checks on pull requests and produces a development deployment plan on `main`. An explicit manual workflow run deploys the Lambda through Terragrunt and Terraform, using OIDC authentication and S3 state locking. See the [CI/CD guide](docs/cicd.md) for workflow behavior and AWS permissions.
-
-## API
-
-The development HTTP API provides authenticated `GET /health` and `POST /site-assessments` routes. Site submissions support validation only; storage and risk analysis will be added later. See the [API guide](docs/api.md) for the contract, authentication, and example data.
-
 ## Problem Statement
 
 Clinical trials are often conducted across multiple hospitals, clinics, and research sites. Each site is expected to meet operational targets such as patient enrollment goals, study timelines, protocol compliance, and timely issue resolution.
@@ -42,6 +30,18 @@ The application provides an easy way to review trial-site performance and detect
 ![Clinical Trial Site Risk Monitor architecture showing the Streamlit UI, AWS services, Snowflake, and infrastructure management with Terraform and Terragrunt](docs/images/clinical-trial-site-risk-monitor-architecture.png)
 
 Terragrunt manages environment configuration and orchestrates Terraform, which provisions the AWS infrastructure shown above.
+
+## Development Setup
+
+See the [development setup guide](docs/setup.md) for installation and verification instructions, starting with Terraform on Windows.
+
+## CI/CD
+
+GitHub Actions runs checks on pull requests and produces a development deployment plan on `main`. An explicit manual workflow run deploys the Lambda through Terragrunt and Terraform, using OIDC authentication and S3 state locking. See the [CI/CD guide](docs/cicd.md) for workflow behavior and AWS permissions.
+
+## API
+
+The development HTTP API provides authenticated `GET /health` and `POST /site-assessments` routes. Site submissions support validation only; storage and risk analysis will be added later. See the [API guide](docs/api.md) for the contract, authentication, and example data.
 
 ## Things to Do
 
