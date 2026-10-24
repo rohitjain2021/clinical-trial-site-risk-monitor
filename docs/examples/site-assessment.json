@@ -1,0 +1,10 @@
+{
+  "site_id": "SITE-001",
+  "site_name": "Example Research Site",
+  "enrollment_target": 60,
+  "actual_enrollment": 21,
+  "days_behind_schedule": 18,
+  "patient_dropout_count": 2,
+  "protocol_deviation_count": 1,
+  "unresolved_issue_count": 3
+}

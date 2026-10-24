@@ -108,13 +108,14 @@ Expected response:
 {
   "statusCode": 200,
   "headers": {
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "Cache-Control": "no-store"
   },
   "body": "{\"status\": \"ok\", \"service\": \"clinical-trial-site-risk-monitor\"}"
 }
 ```
 
-The body is a JSON string to match the API Gateway proxy response format. This local check does not deploy a function or create an HTTP endpoint. API Gateway integration and risk analysis will be added later.
+The body is a JSON string to match the API Gateway proxy response format. This local check does not deploy resources. The HTTP API now exposes authenticated health and validation-only POST routes; see the [API guide](api.md). Risk analysis is not implemented yet.
 
 ## 4. Validate the Lambda Terraform Module
 
@@ -177,7 +178,7 @@ terragrunt --working-dir infrastructure/live/dev/lambda plan -input=false "-out=
 
 Initialization downloads providers and configures the S3 backend. Planning uses your AWS credentials to check the target account and access remote state, acquires a state lock, packages the handler locally, and previews changes. It does not deploy application resources or verify that your identity has every permission required to deploy them.
 
-On an empty development state, expect **4 resources to add, 0 to change, and 0 to destroy**: the Lambda function, IAM execution role, inline logging policy, and CloudWatch log group. Review the account, region, function name, IAM policy scope, and log retention in the plan. The saved plan and ZIP are in the unit's ignored `.terragrunt-cache`; retain the cache while reviewing that plan. Provider lock files are committed for repeatable provider selection.
+The Lambda unit now manages 12 resources including API Gateway, its two IAM-authenticated routes, access logs, and route-specific invoke grants. An unchanged deployed environment should report no changes. Review the account, region, function name, IAM policy scope, and log retention in every plan. The saved plan and ZIP are in the unit's ignored `.terragrunt-cache`; retain the cache while reviewing that plan. Provider lock files are committed for repeatable provider selection. See the [API bootstrap order](api.md) before provisioning a new environment.
 
 ## 6. GitHub Actions Access and Workflow
 
