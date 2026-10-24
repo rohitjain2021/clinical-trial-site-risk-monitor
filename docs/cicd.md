@@ -15,7 +15,7 @@ The plan appears in the run logs and job summary. Pushes never apply infrastruct
 
 The AWS job is limited to `main`, uses a repository-specific concurrency group, and does not cancel a running deployment. S3 locking also serializes Terraform state operations. Terraform manages Lambda deployment; the AWS CLI invocation afterward is a functional check, not infrastructure creation.
 
-Python is pinned to 3.13 to match Lambda. Terraform is 1.16.6 and Terragrunt is 1.1.6. Third-party actions are pinned to commit SHAs. Terragrunt's Linux download is verified against the release checksum file. The shared setup steps are in [.github/actions/setup-tools/action.yml](../.github/actions/setup-tools/action.yml).
+Python is pinned to 3.13 to match Lambda. Terraform is 1.16.6 and Terragrunt is 1.1.6. Both jobs use `ubuntu-24.04` to avoid automatic runner OS migrations. Third-party actions are pinned to commit SHAs, with checkout, Python setup, and Terraform setup using Node 24 runtimes. Terragrunt's Linux download is verified against the release checksum file. The shared setup steps are in [.github/actions/setup-tools/action.yml](../.github/actions/setup-tools/action.yml).
 
 ## AWS Trust and Permissions
 
