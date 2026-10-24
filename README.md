@@ -2,6 +2,10 @@
 
 Clinical trial site risk monitoring platform using AWS, Kubernetes, Snowflake, Terraform, Terragrunt, and AI-driven risk analysis.
 
+## Development Setup
+
+See the [development setup guide](docs/setup.md) for installation and verification instructions, starting with Terraform on Windows.
+
 ## Problem Statement
 
 Clinical trials are often conducted across multiple hospitals, clinics, and research sites. Each site is expected to meet operational targets such as patient enrollment goals, study timelines, protocol compliance, and timely issue resolution.
