@@ -42,3 +42,33 @@ The application provides an easy way to review trial-site performance and detect
 ![Clinical Trial Site Risk Monitor architecture showing the Streamlit UI, AWS services, Snowflake, and infrastructure management with Terraform and Terragrunt](docs/images/clinical-trial-site-risk-monitor-architecture.png)
 
 Terragrunt manages environment configuration and orchestrates Terraform, which provisions the AWS infrastructure shown above.
+
+## Things to Do
+
+The Lambda and authenticated API Gateway are deployed. Site submissions currently support validation only; the following work remains:
+
+- [ ] Define and document Low, Medium, and High risk rules and the reasons for each classification.
+- [ ] Build and test the FastAPI risk service locally using representative site data.
+- [ ] Provision EKS, networking, and load balancing through Terraform and Terragrunt.
+- [ ] Deploy the risk service and connect Lambda to it.
+- [ ] Add Snowflake storage for trial-site data and assessment results.
+- [ ] Build the Streamlit interface for data uploads, site summaries, and risk results.
+- [ ] Provision Streamlit hosting and its scoped API access through Terraform and Terragrunt.
+- [ ] Add Amazon Bedrock explanations based on calculated risk results.
+- [ ] Extend CI/CD to deploy and verify the remaining application components.
+- [ ] Add monitoring, alerts, and end-to-end tests for the complete workflow.
+- [ ] Update the architecture diagram to show CI/CD, S3 state, CloudWatch logs, API security, and implemented versus planned components.
+
+## Documentation
+
+### Development Setup
+
+[Read the setup guide](docs/setup.md) for tool installation, local testing, and Terraform/Terragrunt configuration.
+
+### API Guide
+
+[Read the API guide](docs/api.md) for endpoints, authentication, submission fields, and request examples.
+
+### CI/CD and Deployment
+
+[Read the CI/CD guide](docs/cicd.md) for GitHub Actions workflows, AWS access, deployment approval, and verification.
