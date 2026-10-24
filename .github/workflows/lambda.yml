@@ -41,9 +41,12 @@ jobs:
           set -euo pipefail
           terraform fmt -check -recursive infrastructure/modules
           terraform fmt -check infrastructure/bootstrap/state-backend/main.tf
-          rg --files --hidden -g '*.hcl' -g '!.terraform.lock.hcl' infrastructure |
-            while IFS= read -r config; do
-              terragrunt hcl fmt --check --file "$config"
+          git ls-files -z -- infrastructure |
+            while IFS= read -r -d '' config; do
+              case "$config" in
+                */.terraform.lock.hcl) continue ;;
+                *.hcl) terragrunt hcl fmt --check --file "$config" ;;
+              esac
             done
       - name: Validate modules and run mocked security tests
         shell: bash
