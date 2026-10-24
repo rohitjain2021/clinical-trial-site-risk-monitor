@@ -61,6 +61,10 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 
 ## Documentation
 
+### Repository Security
+
+[Read the security guide](docs/security.md) for private deployment configuration, credential protection, CI secret scanning, and Git history limitations.
+
 ### Tools and Technologies
 
 [Read the technology guide](docs/technologies.md) for what each tool does, why we use it, and how it fits this project, with examples and implemented versus planned status.

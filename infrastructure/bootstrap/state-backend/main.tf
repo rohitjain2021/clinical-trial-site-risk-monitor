@@ -11,11 +11,11 @@ terraform {
 
 provider "aws" {
   region              = "us-east-1"
-  allowed_account_ids = ["697078878651"]
+  allowed_account_ids = [var.aws_account_id]
 }
 
 locals {
-  bucket_name = "clinical-trial-site-risk-monitor-tfstate-dev-697078878651"
+  bucket_name = var.state_bucket
   tags = {
     Project     = "clinical-trial-site-risk-monitor"
     Environment = "dev"

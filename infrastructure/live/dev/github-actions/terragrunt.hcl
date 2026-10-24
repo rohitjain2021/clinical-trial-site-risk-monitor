@@ -1,3 +1,7 @@
+locals {
+  environment = read_terragrunt_config(find_in_parent_folders("env.hcl")).locals
+}
+
 include "root" {
   path = find_in_parent_folders("root.hcl")
 }
@@ -13,5 +17,10 @@ dependency "lambda" {
 }
 
 inputs = {
-  api_gateway_id = dependency.lambda.outputs.api_gateway_id
+  api_gateway_id       = dependency.lambda.outputs.api_gateway_id
+  aws_account_id       = local.environment.aws_account_id
+  state_bucket         = local.environment.state_bucket
+  github_repository    = local.environment.deployment.github_repository
+  github_owner_id      = local.environment.deployment.github_owner_id
+  github_repository_id = local.environment.deployment.github_repository_id
 }

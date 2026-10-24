@@ -1,6 +1,6 @@
 # Minimal Site Risk Monitor API
 
-Development base URL: `https://qe1b5ty9y3.execute-api.us-east-1.amazonaws.com/dev`
+Development base URL: `https://<API_ID>.execute-api.us-east-1.amazonaws.com/dev`
 
 The API, integration, routes, throttling, Lambda invocation grants, and access log group are defined in `infrastructure/modules/lambda/api.tf`. All AWS resources and permissions are managed through Terraform/Terragrunt.
 

@@ -1,17 +1,22 @@
 mock_provider "aws" {
   mock_resource "aws_s3_bucket" {
     defaults = {
-      arn = "arn:aws:s3:::clinical-trial-site-risk-monitor-tfstate-dev-697078878651"
-      id  = "clinical-trial-site-risk-monitor-tfstate-dev-697078878651"
+      arn = "arn:aws:s3:::clinical-trial-site-risk-monitor-tfstate-dev-123456789012"
+      id  = "clinical-trial-site-risk-monitor-tfstate-dev-123456789012"
     }
   }
+}
+
+variables {
+  aws_account_id = "123456789012"
+  state_bucket   = "clinical-trial-site-risk-monitor-tfstate-dev-123456789012"
 }
 
 run "secure_state_storage" {
   command = apply
 
   assert {
-    condition     = aws_s3_bucket.state.bucket == "clinical-trial-site-risk-monitor-tfstate-dev-697078878651" && !aws_s3_bucket.state.force_destroy
+    condition     = aws_s3_bucket.state.bucket == "clinical-trial-site-risk-monitor-tfstate-dev-123456789012" && !aws_s3_bucket.state.force_destroy
     error_message = "Use the project-specific bucket name and do not allow forced emptying."
   }
 

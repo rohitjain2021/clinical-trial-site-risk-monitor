@@ -261,7 +261,7 @@ S3 stores objects. In this project it stores Terraform state: the record connect
 
 ## Why and how we use it
 
-Our computer and CI must share state. The bucket is `clinical-trial-site-risk-monitor-tfstate-dev-697078878651`, with encryption, versioning, public-access blocking, disabled ACLs, and an HTTPS-only policy.
+Our computer and CI must share state. The bucket is `clinical-trial-site-risk-monitor-tfstate-dev-<AWS_ACCOUNT_ID>`, with encryption, versioning, public-access blocking, disabled ACLs, and an HTTPS-only policy.
 
 Application units have separate state keys. The bucket's own bootstrap stack deliberately retains local state, which needs secure backup. This bucket does not store trial-site submissions.
 
