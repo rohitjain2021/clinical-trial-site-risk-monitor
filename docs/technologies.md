@@ -344,7 +344,7 @@ That is a planned flow. The current API accepts one JSON record, not CSV/Excel f
 
 # Docker and Container Images
 
-**Status: planned packaging approach for the risk service; no Dockerfile exists yet.**
+**Status: image built and tested locally; registry publishing and EKS deployment remain planned.**
 
 ## What it is and what it does
 
@@ -352,7 +352,7 @@ Docker provides tooling to build and run container images: packages containing a
 
 ## Why and how we plan to use it
 
-We need a consistent FastAPI application package for local testing and Kubernetes deployment. The container build and dependency versions will be defined after the service is implemented.
+We need a consistent FastAPI package for local testing and Kubernetes deployment. `services/risk_service/Dockerfile` uses Python 3.13, runtime requirements, and a non-root user. Its build context excludes tests, virtual environments, and private settings. Local container checks passed for health, risk assessment, invalid input, and the restricted runtime. See the [local container guide](container.md) for build and test commands and validation results.
 
 ## Small example
 

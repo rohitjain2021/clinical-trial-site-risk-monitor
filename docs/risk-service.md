@@ -2,6 +2,8 @@
 
 The local service exposes the existing [prototype risk calculator](risk-rules.md) through two HTTP routes. The app is in `services/risk_service/app.py`; it reuses `calculate_risk()` and adds no database, cloud integration, or scoring framework.
 
+For container packaging and its current verification status, see the [local container guide](container.md).
+
 | Route | Purpose | Successful response |
 |---|---|---|
 | `GET /health` | Check service connectivity and rule version | `200`, `status: ok` |

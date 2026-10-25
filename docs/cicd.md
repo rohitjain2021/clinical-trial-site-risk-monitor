@@ -8,7 +8,7 @@ Deployment identifiers come from encrypted Actions secrets and an ignored local 
 
 | Trigger | Checks | AWS actions |
 |---|---|---|
-| Pull request | Python health response, formatting, Terraform validation, mocked security tests | None; no OIDC permission |
+| Pull request | Python response and risk-service tests, container build and HTTP checks, formatting, Terraform validation, mocked security tests | None; no OIDC permission |
 | Push to `main` | Same checks | Authenticate and generate a Lambda plan |
 | Manual run on `main`, `deploy` unchecked | Same checks | Generate a Lambda plan |
 | Manual run on `main`, `deploy` checked | Same checks | Plan, apply, invoke Lambda, verify signed API requests and unsigned denial |
@@ -17,7 +17,9 @@ The plan appears in masked run logs; raw plan output is not copied to the job su
 
 The AWS job is limited to `main`, uses a repository-specific concurrency group, and does not cancel a running deployment. S3 locking also serializes Terraform state operations. Terraform manages Lambda deployment; the AWS CLI invocation afterward is a functional check, not infrastructure creation.
 
-Python is pinned to 3.13 to match Lambda. Terraform is 1.16.6 and Terragrunt is 1.1.6. Both jobs use `ubuntu-24.04` to avoid automatic runner OS migrations. Third-party actions are pinned to commit SHAs, with checkout, Python setup, and Terraform setup using Node 24 runtimes. Terragrunt's Linux download is verified against the release checksum file. The shared setup steps are in [.github/actions/setup-tools/action.yml](../.github/actions/setup-tools/action.yml).
+The separate `container` job builds the FastAPI Docker image and runs [scripts/check_container.py](../scripts/check_container.py). It checks real HTTP responses and the restricted runtime, then removes its temporary container. It needs no AWS credentials and does not publish an image. The `dev` job requires both `checks` and `container` to pass. See the [container guide](container.md) for local commands and expected responses.
+
+Application Python is pinned to 3.13 in CI setup and the container image to match Lambda. The container smoke-test host uses the runner's `python3` with only standard-library modules. Terraform is 1.16.6 and Terragrunt is 1.1.6. All jobs use `ubuntu-24.04` to avoid automatic runner OS migrations. Third-party actions are pinned to commit SHAs, with checkout, Python setup, and Terraform setup using Node 24 runtimes. Terragrunt's Linux download is verified against the release checksum file. The shared setup steps are in [.github/actions/setup-tools/action.yml](../.github/actions/setup-tools/action.yml).
 
 ## AWS Trust and Permissions
 

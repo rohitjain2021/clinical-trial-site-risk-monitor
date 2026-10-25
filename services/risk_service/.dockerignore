@@ -1,0 +1,7 @@
+# Only runtime inputs enter the build context; exclude .venv, tests, and local files.
+**
+!Dockerfile
+!.dockerignore
+!requirements.txt
+!app.py
+!risk.py

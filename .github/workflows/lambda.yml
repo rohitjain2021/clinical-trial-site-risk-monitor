@@ -80,8 +80,20 @@ jobs:
             terraform -chdir="$module" test
           done
 
+  container:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, Node 24
+        with:
+          persist-credentials: false
+      - name: Build FastAPI image
+        run: docker build --pull -t clinical-trial-risk-service:local services/risk_service
+      - name: Test container API and restricted runtime
+        run: python3 scripts/check_container.py
+
   dev:
-    needs: checks
+    needs: [checks, container]
     # AWS additionally enforces main in the OIDC subject; PR and feature refs are rejected.
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
