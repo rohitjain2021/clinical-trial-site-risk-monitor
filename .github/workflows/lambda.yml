@@ -53,6 +53,8 @@ jobs:
           PYTHONPATH: services/lambda
         run: |
           python -m unittest discover -s services/lambda -p 'test_*.py' -v
+      - name: Test local prototype risk rules
+        run: python -m unittest discover -s services/risk_service -p 'test_*.py' -v
       - name: Check Terraform and Terragrunt formatting
         shell: bash
         run: |
