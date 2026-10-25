@@ -50,6 +50,8 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [x] Document [prototype risk rules](docs/risk-rules.md), classification reasons, and sample cases. Thresholds require review before operational use.
 - [x] Implement and test the standalone prototype risk calculation locally; it is not connected to the deployed API yet.
 - [x] Build and test the [FastAPI risk service locally](docs/risk-service.md) using representative site data. It is not deployed or connected to Lambda yet.
+- [x] Build and test the [FastAPI container locally](docs/container.md).
+- [x] Add container build and HTTP checks to GitHub Actions; each run reports its result.
 - [ ] Provision EKS, networking, and load balancing through Terraform and Terragrunt.
 - [ ] Deploy the risk service and connect Lambda to it.
 - [ ] Add Snowflake storage for trial-site data and assessment results.
@@ -61,6 +63,10 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [ ] Update the architecture diagram to show CI/CD, S3 state, CloudWatch logs, API security, and implemented versus planned components.
 
 ## Documentation
+
+### Local Container
+
+[Read the container guide](docs/container.md) for Docker prerequisites, image build commands, local requests, and cleanup.
 
 ### Local Risk Service
 
