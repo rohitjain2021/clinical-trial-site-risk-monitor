@@ -117,4 +117,4 @@ python -c "import json; from pathlib import Path; from services.risk_service.ris
 
 The calculator uses only the Python standard library. It raises `ValueError` for invalid input and does not modify the submitted dictionary. Validation follows the existing API field contract, but the module has no dependency on the Lambda handler or AWS.
 
-Next, expose the locally tested function through FastAPI. No AWS infrastructure change or API contract change was made for this calculation step.
+The function is now exposed by a [local FastAPI service](risk-service.md). The deployed API remains validation-only; connecting Lambda and deploying the service are later steps.

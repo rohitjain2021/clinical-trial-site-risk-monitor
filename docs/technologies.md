@@ -300,7 +300,7 @@ The Lambda numbers above are one observed warm test, not a performance guarantee
 
 # FastAPI
 
-**Status: planned; no risk service is implemented yet.**
+**Status: implemented and tested locally; not deployed.**
 
 ## What it is and what it does
 
@@ -308,7 +308,7 @@ FastAPI is a Python framework for building APIs, with typed request models and g
 
 ## Why and how we plan to use it
 
-It will host the risk-calculation service separately from Lambda. We first need to agree on operational risk rules, implement them locally, and test representative inputs. Lambda will then forward validated requests to this service through the planned load balancer.
+It hosts the risk-calculation service separately from Lambda. `services/risk_service/app.py` exposes health and assessment routes and reuses the prototype calculator. The app is tested locally with representative inputs. Lambda integration and deployment through the planned load balancer remain future work. See the [local service guide](risk-service.md).
 
 ## Small example
 

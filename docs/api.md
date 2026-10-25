@@ -11,6 +11,8 @@ The API, integration, routes, throttling, Lambda invocation grants, and access l
 
 POST does not store records, create an assessment ID, queue work, or calculate risk. The response explicitly reports validation only. File uploads and batches are not implemented. Streamlit can eventually parse a file and submit records from its Python server.
 
+A separate [local FastAPI service](risk-service.md) now calculates prototype risk on the same route path at a local address. It is not deployed or connected to this API Gateway endpoint yet.
+
 ## Authentication
 
 Both routes use `AWS_IAM`: requests require AWS Signature Version 4 signing for service `execute-api`, region `us-east-1`, plus `execute-api:Invoke` permission for the route. Temporary credentials also need the session token header. Opening the URL in a browser without signing returns `403`.

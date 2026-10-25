@@ -49,7 +49,7 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 
 - [x] Document [prototype risk rules](docs/risk-rules.md), classification reasons, and sample cases. Thresholds require review before operational use.
 - [x] Implement and test the standalone prototype risk calculation locally; it is not connected to the deployed API yet.
-- [ ] Build and test the FastAPI risk service locally using representative site data.
+- [x] Build and test the [FastAPI risk service locally](docs/risk-service.md) using representative site data. It is not deployed or connected to Lambda yet.
 - [ ] Provision EKS, networking, and load balancing through Terraform and Terragrunt.
 - [ ] Deploy the risk service and connect Lambda to it.
 - [ ] Add Snowflake storage for trial-site data and assessment results.
@@ -61,6 +61,10 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [ ] Update the architecture diagram to show CI/CD, S3 state, CloudWatch logs, API security, and implemented versus planned components.
 
 ## Documentation
+
+### Local Risk Service
+
+[Read the FastAPI service guide](docs/risk-service.md) to install, run, and test the local risk assessment endpoints.
 
 ### Risk Rules
 
