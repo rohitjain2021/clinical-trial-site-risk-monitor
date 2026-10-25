@@ -47,7 +47,8 @@ The development HTTP API provides authenticated `GET /health` and `POST /site-as
 
 The Lambda and authenticated API Gateway are deployed. Site submissions currently support validation only; the following work remains:
 
-- [ ] Define and document Low, Medium, and High risk rules and the reasons for each classification.
+- [x] Document [prototype risk rules](docs/risk-rules.md), classification reasons, and sample cases. Thresholds require review before operational use.
+- [x] Implement and test the standalone prototype risk calculation locally; it is not connected to the deployed API yet.
 - [ ] Build and test the FastAPI risk service locally using representative site data.
 - [ ] Provision EKS, networking, and load balancing through Terraform and Terragrunt.
 - [ ] Deploy the risk service and connect Lambda to it.
@@ -60,6 +61,10 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [ ] Update the architecture diagram to show CI/CD, S3 state, CloudWatch logs, API security, and implemented versus planned components.
 
 ## Documentation
+
+### Risk Rules
+
+[Read the prototype risk rules](docs/risk-rules.md) for proposed Low, Medium, and High thresholds, calculation examples, and limitations. These rules are not implemented in the deployed API yet.
 
 ### Repository Security
 

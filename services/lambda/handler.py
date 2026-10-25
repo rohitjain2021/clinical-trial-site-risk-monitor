@@ -43,12 +43,15 @@ def _validate_site(record):
         value = record.get(field)
         if type(value) is not int or value < 0:
             errors.append(f"{field} must be a nonnegative integer.")
-    if type(record.get("enrollment_target")) is int and record["enrollment_target"] == 0:
+
+    target = record.get("enrollment_target")
+    enrolled = record.get("actual_enrollment")
+    dropouts = record.get("patient_dropout_count")
+    if type(target) is int and target == 0:
         errors.append("enrollment_target must be greater than zero.")
-    if (type(record.get("patient_dropout_count")) is int
-            and type(record.get("actual_enrollment")) is int
-            and record["patient_dropout_count"] > record["actual_enrollment"]):
-        errors.append("patient_dropout_count cannot exceed actual_enrollment.")
+    if type(dropouts) is int and type(enrolled) is int:
+        if dropouts > enrolled:
+            errors.append("patient_dropout_count cannot exceed actual_enrollment.")
     return errors
 
 
@@ -65,7 +68,8 @@ def lambda_handler(event, context):
     if route != "POST /site-assessments":
         return _response(404, {"error": "Route not found."})
     headers = {key.lower(): value for key, value in (event.get("headers") or {}).items()}
-    if headers.get("content-type", "").split(";", 1)[0].strip().lower() != "application/json":
+    content_type = headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    if content_type != "application/json":
         return _response(415, {"error": "Content-Type must be application/json."})
     body = event.get("body") or ""
     if not isinstance(body, str):
@@ -73,7 +77,10 @@ def lambda_handler(event, context):
     if len(body) > MAX_BODY_BYTES * 2:
         return _response(413, {"error": "Body exceeds the 64 KiB limit."})
     try:
-        raw = base64.b64decode(body, validate=True) if event.get("isBase64Encoded") else body.encode("utf-8")
+        if event.get("isBase64Encoded"):
+            raw = base64.b64decode(body, validate=True)
+        else:
+            raw = body.encode("utf-8")
         if len(raw) > MAX_BODY_BYTES:
             return _response(413, {"error": "Body exceeds the 64 KiB limit."})
         record = json.loads(raw.decode("utf-8"))
