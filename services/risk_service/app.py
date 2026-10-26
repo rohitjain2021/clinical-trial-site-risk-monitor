@@ -2,12 +2,13 @@
 
 import json
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 from services.risk_service.risk import RULES_VERSION, calculate_risk
 from services.risk_service.explanation import explain_risk
+from services.risk_service.notifications import notify_assessment
 
 app = FastAPI(title="Clinical Trial Site Risk Service", version=RULES_VERSION)
 MAX_BODY_BYTES = 64 * 1024
@@ -20,7 +21,7 @@ def health():
 
 
 @app.post("/site-assessments")
-async def assess_site(request: Request):
+async def assess_site(request: Request, background_tasks: BackgroundTasks):
     """Read one JSON site and call the existing calculator without storing data.
 
     Reuse calculator validation rather than duplicate the field schema. Bound
@@ -49,4 +50,6 @@ async def assess_site(request: Request):
     explanation = await run_in_threadpool(explain_risk, result)
     if explanation is not None:
         result["explanation"] = explanation
+        # Send only statuses after the response; health/invalid/disabled calls never notify.
+        background_tasks.add_task(notify_assessment, result["risk_level"], explanation["status"])
     return JSONResponse(content=result, headers={"Cache-Control": "no-store"})

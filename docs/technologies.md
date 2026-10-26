@@ -557,4 +557,8 @@ Streamlit -> API Gateway -> Lambda -> ALB -> FastAPI on EKS
                                              |-> Bedrock explanations
 ```
 
-See the [setup guide](setup.md), [API guide](api.md), [CI/CD guide](cicd.md), and the README's Things to Do checklist for implementation details and remaining work. All snippets describing planned components are illustrative; they are not instructions to deploy missing resources manually.
+See the [setup guide](setup.md), [API guide](api.md), [CI/CD guide](cicd.md), and the README's project overview for implementation details and current scope. All snippets describing planned components are illustrative; they are not instructions to deploy missing resources manually.
+
+# Amazon Simple Notification Service (SNS)
+
+SNS distributes a published message to confirmed subscribers. For this project, a small optional background publisher sends an assessment-status email after a valid Bedrock attempt. Terraform manages one project topic, an HTTPS-only policy, the private email subscription, and exact publishing permissions. SNS native CloudWatch metrics demonstrate published/delivered/failed counts without an extra alarm or monitoring agent. The new container rollout is still needed for hosted notifications. See the [implementation and demo guide](notifications.md).

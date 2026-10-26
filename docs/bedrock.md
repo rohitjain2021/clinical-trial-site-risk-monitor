@@ -62,3 +62,7 @@ The real Nova Micro model returned explanations for synthetic High, Medium, and 
 The reviewed operator Terraform plans have created the exact model boundary and IRSA role/policy, and updated only the existing bounded deployment-role policy. Running pods, workers, and network resources were not changed. IAM simulation allows Nova Micro and denies Nova Pro. Access Analyzer returned zero findings on the identity policies; its audience-claim suggestion on the trust policy was checked against [AWS's documented exact EKS aud/sub pattern](https://docs.aws.amazon.com/eks/latest/userguide/associate-service-account-role.html). The application service account and updated container have since been deployed through the EKS workflow.
 
 Verified release: `4ca04378feedc3acd64aa37de06829232cdca634`. Both the [image/Lambda deployment](https://github.com/rohitjain2021/clinical-trial-site-risk-monitor/actions/runs/40404411193) and [EKS deployment with explanation verification](https://github.com/rohitjain2021/clinical-trial-site-risk-monitor/actions/runs/40405191261) succeeded.
+
+## Assessment Notifications
+
+The application can publish a minimal status event after a Bedrock attempt using an in-process background task. The same pod role has a separate exact-topic `sns:Publish` policy capped by its operator-managed boundary. Risk responses and model-failure fallback remain unchanged. See the [SNS notification guide](notifications.md) for rollout and confirmation.

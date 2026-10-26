@@ -1,0 +1,4 @@
+# Copy to ignored notifications.local.hcl; use the recipient's actual address only there.
+locals {
+  email = "you@example.com"
+}

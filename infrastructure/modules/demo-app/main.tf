@@ -57,6 +57,10 @@ resource "kubernetes_deployment_v1" "risk" {
             value = "true"
           }
           env {
+            name  = "ASSESSMENT_SNS_TOPIC_ARN"
+            value = var.assessment_notification_topic_arn
+          }
+          env {
             name  = "AWS_DEFAULT_REGION"
             value = "us-east-1"
           }

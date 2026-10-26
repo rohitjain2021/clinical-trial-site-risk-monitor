@@ -32,8 +32,8 @@ locals {
   ]
 }
 
-# The application can invoke only the regional Nova Micro model. CI cannot edit
-# this boundary or grant other Bedrock, storage, or infrastructure permissions.
+# Cap the application at Nova Micro and publishing to its exact notification topic.
+# CI cannot edit this boundary or grant storage or infrastructure permissions.
 resource "aws_iam_policy" "risk_boundary" {
   name = "${local.demo_cluster_name}-risk-service-boundary"
   policy = jsonencode({
@@ -42,6 +42,11 @@ resource "aws_iam_policy" "risk_boundary" {
       Effect    = "Allow"
       Action    = "bedrock:InvokeModel"
       Resource  = "arn:aws:bedrock:${local.region}::foundation-model/amazon.nova-micro-v1:0"
+      Condition = { StringEquals = { "aws:RequestedRegion" = local.region } }
+      }, {
+      Effect    = "Allow"
+      Action    = "sns:Publish"
+      Resource  = "arn:aws:sns:${local.region}:${local.account_id}:clinical-trial-site-risk-monitor-dev-assessments"
       Condition = { StringEquals = { "aws:RequestedRegion" = local.region } }
     }]
   })

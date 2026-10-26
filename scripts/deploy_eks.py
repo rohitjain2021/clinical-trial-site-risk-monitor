@@ -28,6 +28,7 @@ ADDRESSES = {
         "aws_iam_role_policy_attachment.nodes", "aws_iam_role_policy_attachment.cni",
         "aws_iam_role_policy.node_images", "aws_iam_openid_connect_provider.cluster",
         "aws_iam_role.risk", "aws_iam_role_policy.bedrock",
+        "aws_iam_role_policy.notifications",
     },
     "demo-app": {
         "kubernetes_namespace_v1.demo", "kubernetes_deployment_v1.risk",
