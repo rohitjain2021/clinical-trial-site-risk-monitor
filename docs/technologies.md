@@ -366,7 +366,7 @@ Our current Lambda uses a ZIP package, not a container image. Choosing container
 
 # Amazon Elastic Container Registry (ECR)
 
-**Status: private development repository provisioned; scoped manual image-publishing workflow implemented, with its first GitHub run pending merge.**
+**Status: private development repository provisioned; the first commit-tagged FastAPI image was published and verified through GitHub Actions. EKS deployment remains planned.**
 
 ## What it is and what it does
 
