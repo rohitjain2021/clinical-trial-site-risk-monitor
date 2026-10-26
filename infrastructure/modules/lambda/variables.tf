@@ -36,3 +36,23 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "backend" {
+  description = "Private ALB settings from ignored configuration; null explicitly disconnects the backend."
+  type = object({
+    url               = string
+    subnet_ids        = list(string)
+    security_group_id = string
+  })
+  default   = null
+  sensitive = true
+  validation {
+    condition = var.backend == null ? true : (
+      can(regex("^http://internal-clinical-trial-risk-dev-alb-[a-zA-Z0-9-]+\\.us-east-1\\.elb\\.amazonaws\\.com$", var.backend.url)) &&
+      length(toset(var.backend.subnet_ids)) == 2 &&
+      alltrue([for id in var.backend.subnet_ids : can(regex("^subnet-[0-9a-f]+$", id))]) &&
+      can(regex("^sg-[0-9a-f]+$", var.backend.security_group_id))
+    )
+    error_message = "Use the project's internal ALB, two existing subnets, and its dedicated client security group."
+  }
+}

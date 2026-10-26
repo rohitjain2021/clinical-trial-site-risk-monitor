@@ -13,3 +13,9 @@ output "target_group_arn" {
   value       = aws_lb_target_group.risk.arn
   sensitive   = true
 }
+
+output "subnet_ids" {
+  description = "Existing subnets for the Lambda client; no network resources are created."
+  value       = var.subnet_ids
+  sensitive   = true
+}

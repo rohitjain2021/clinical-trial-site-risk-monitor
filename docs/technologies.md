@@ -94,15 +94,15 @@ Lambda runs application code on demand without us operating an application serve
 
 ## Why and how we use it
 
-It is the request-handling layer behind API Gateway. The deployed Python handler supports health checks and validates one submitted site record. Terraform packages `handler.py` at the ZIP root and sets the entry point to `handler.lambda_handler`.
+It is the request-handling layer behind API Gateway. The deployed Python handler supports liveness, validates a site record, and forwards valid JSON through the private ALB to FastAPI. Terraform packages `handler.py` at the ZIP root and sets the entry point to `handler.lambda_handler`.
 
-The function has 128 MB of memory and a 3-second timeout. Its execution role permits writing its own logs, not reading S3 state or accessing Snowflake or Bedrock. Forwarding requests to the planned risk service remains future work.
+The function has 128 MB of memory and an 8-second timeout, with a 3-second backend HTTP timeout. Its role permits its own logs and Lambda-service ENI management; function-code EC2 calls are explicitly denied. It cannot read Terraform state or access Snowflake/Bedrock.
 
 ## Small example
 
 ```text
 GET /health -> Lambda -> 200 with status "ok"
-POST /site-assessments -> Lambda -> valid record or validation error
+POST /site-assessments -> Lambda validation -> private ALB -> FastAPI risk result
 ```
 
 The Lambda timeout is an upper limit, not how long every request takes.
@@ -128,7 +128,7 @@ POST /dev/site-assessments
 Content-Type: application/json
 ```
 
-The request must also be SigV4-signed. See the [API guide](api.md) for the complete body and authentication requirements. POST currently returns `status: validated`, not a risk assessment.
+The request must also be SigV4-signed. See the [API guide](api.md) for the complete body and authentication requirements. POST returns FastAPI risk level, reasons, rules version, and site ID.
 
 [AWS API product comparison](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-vs-rest.html) and [HTTP API TLS policy](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-ciphers.html).
 
@@ -300,7 +300,7 @@ The Lambda numbers above are one observed warm test, not a performance guarantee
 
 # FastAPI
 
-**Status: deployed privately on EKS and verified through the internal ALB; Lambda integration remains pending.**
+**Status: deployed on EKS and verified through API Gateway, Lambda, and the internal ALB.**
 
 ## What it is and what it does
 
@@ -308,7 +308,7 @@ FastAPI is a Python framework for building APIs, with typed request models and g
 
 ## Why and how we plan to use it
 
-It hosts the risk-calculation service separately from Lambda. `services/risk_service/app.py` exposes health and assessment routes and reuses the prototype calculator. The app is tested locally and in EKS. The internal ALB now reaches it through the worker NodePort; Lambda integration remains future work. See the [local service guide](risk-service.md).
+It hosts the risk-calculation service separately from Lambda. `services/risk_service/app.py` exposes health and assessment routes and reuses the prototype calculator. The app is tested locally and in EKS. The internal ALB now reaches it through the worker NodePort; Lambda now validates API input and calls this private ALB path. See the [local service guide](risk-service.md).
 
 ## Small example
 
@@ -316,7 +316,7 @@ It hosts the risk-calculation service separately from Lambda. `services/risk_ser
 Site metrics -> FastAPI service -> risk level and specific contributing reasons
 ```
 
-The current `status: validated` Lambda response is not this future assessment result. Risk thresholds and service routes have not been finalized.
+The authenticated API now returns these prototype assessments. Thresholds are documented in the risk rules and require review before operational use.
 
 [Official FastAPI documentation](https://fastapi.tiangolo.com/).
 
@@ -431,7 +431,7 @@ Kubernetes is the orchestration system; EKS is the managed service hosting it. T
 
 # Application Load Balancer (ALB)
 
-**Status: private ALB provisioned and verified; Lambda does not call it yet.**
+**Status: private ALB provisioned, connected to Lambda, and verified through authenticated API requests.**
 
 ## What it is and what it does
 
@@ -447,13 +447,13 @@ The internal ALB forwards HTTP to worker NodePort 30800, which Kubernetes routes
 Lambda request -> ALB -> healthy FastAPI target
 ```
 
-Private network access is configured. The listener currently uses HTTP; an internal TLS certificate and Lambda connection are not implemented. This instance-target design does not install an ingress controller.
+Private network access is configured. The listener currently uses HTTP; an internal TLS certificate is not implemented. Lambda is connected through the dedicated client group. This instance-target design does not install an ingress controller.
 
 [Official ALB introduction](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
 
 # Amazon VPC, Subnets, and Security Groups
 
-**Status: existing default VPC/subnets reused; private ALB access rules provisioned. Lambda VPC attachment remains pending.**
+**Status: existing default VPC/subnets reused; private ALB access rules provisioned. Lambda is attached through the dedicated ALB client group.**
 
 ## What they are and what they do
 
@@ -469,7 +469,7 @@ Terraform/Terragrunt reuse the existing network and manage dedicated ALB/client 
 Lambda security group -> permitted service port -> internal ALB -> FastAPI targets
 ```
 
-The ALB-to-FastAPI portion is deployed and verified. Lambda is not yet attached to the VPC or dedicated ALB client group.
+The ALB-to-FastAPI portion is deployed and verified. Lambda is attached to the existing subnets and dedicated ALB client group; authenticated end-to-end requests passed.
 
 # Snowflake and SQL
 
@@ -530,7 +530,7 @@ These tools support development and delivery; they are not additional applicatio
 | PowerShell | Windows shell | Run local setup, testing, and infrastructure commands | `terragrunt --version` |
 | Bash | Shell used by Linux CI runners | Run workflow validation, installation, and deployment steps | `set -euo pipefail` makes failures stop scripts |
 | curl | HTTP command-line client | Test signed API requests and download checksum-verified tools | Unsigned health request returns 403 |
-| JSON | Structured data format | Site submissions and Lambda response bodies | `{"status":"validated"}` |
+| JSON | Structured data format | Site submissions and Lambda response bodies | `{"risk_level":"High"}` |
 | HCL | Configuration language used by Terraform/Terragrunt | Describe resources and environment settings | `log_retention_days = 14` |
 | YAML | Structured configuration format | Define GitHub Actions; planned Kubernetes manifests may also use it | `runs-on: ubuntu-24.04` |
 | Python unittest | Standard-library test framework | Test valid and invalid request contracts without AWS | `python -m unittest discover -s services/lambda` |

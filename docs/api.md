@@ -7,11 +7,11 @@ The API, integration, routes, throttling, Lambda invocation grants, and access l
 | Method and path | Purpose | Success |
 |---|---|---|
 | `GET /health` | Verify API-to-Lambda connectivity | `200`, `status: ok` |
-| `POST /site-assessments` | Validate one aggregate site record | `200`, `status: validated` |
+| `POST /site-assessments` | Validate one aggregate record and obtain FastAPI risk results | `200`, risk level, reasons, and rules version |
 
-POST does not store records, create an assessment ID, queue work, or calculate risk. The response explicitly reports validation only. File uploads and batches are not implemented. Streamlit can eventually parse a file and submit records from its Python server.
+POST validates the record in Lambda, then calls the private ALB and FastAPI service. FastAPI owns prototype risk calculation. No records are stored, queued, or assigned assessment IDs. File uploads and batches are not implemented.
 
-A separate [local FastAPI service](risk-service.md) now calculates prototype risk on the same route path at a local address. It is not deployed or connected to this API Gateway endpoint yet.
+The authenticated request path is API Gateway ? Lambda ? private ALB ? EKS/FastAPI. The Lambda liveness route stays available when the backend is explicitly disconnected; a valid assessment then returns 503.
 
 ## Authentication
 
@@ -33,13 +33,20 @@ Successful response:
 
 ```json
 {
-  "status": "validated",
   "site_id": "SITE-001",
-  "message": "Site data is valid. Storage and risk analysis are not implemented yet."
+  "risk_level": "High",
+  "rules_version": "prototype-v1",
+  "reasons": [
+    "Enrollment is 35.00% of target, below the 50% threshold.",
+    "The site is 18 days behind schedule, meeting the High threshold of 15 days.",
+    "Dropouts are 9.52% of enrolled patients, above the 5% threshold.",
+    "There is 1 protocol deviation, meeting the Medium threshold of 1.",
+    "There are 3 unresolved issues, meeting the High threshold of 3."
+  ]
 }
 ```
 
-Errors: `400` for invalid JSON/site data; `413` for decoded bodies over 64 KiB; `415` for unsupported content type. Unknown routes are not exposed. Responses use `Cache-Control: no-store`.
+Errors: `400` for invalid JSON/site data; `413` for decoded bodies over 64 KiB; `415` for unsupported content type. Backend errors: `502` for failed/invalid upstream responses, `503` for an unavailable or unconfigured backend, and `504` for backend timeout. Internal endpoints, exceptions, and client authorization headers are not returned or forwarded. Unknown routes are not exposed. Responses use `Cache-Control: no-store`.
 
 ## Infrastructure and Deployment
 
@@ -49,7 +56,7 @@ The operator-managed GitHub access stack provisions a delivery policy restricted
 
 The GitHub access Terragrunt unit reads `api_gateway_id` from the Lambda unit's S3 state. For a fresh environment, bootstrap the state bucket, OIDC/boundary and log delivery policy first, create the Lambda/API using operator credentials, then enable that dependency and update the CI role. Do not run the complete initial bootstrap as a parallel deployment.
 
-The initial API creation and handler update were applied through Terraform. Future normal updates run through the manual deployment workflow, which now tests signed GET/POST requests and verifies unsigned requests are denied.
+The API and Lambda-to-ALB integration were applied through reviewed Terraform plans. Future normal updates run through the manual deployment workflow, which now tests signed GET/POST requests and verifies unsigned requests are denied.
 
 ## Verification
 
@@ -60,4 +67,4 @@ terragrunt --working-dir infrastructure/live/dev/lambda plan
 terragrunt --working-dir infrastructure/live/dev/lambda output -raw api_base_url
 ```
 
-Local Python tests cover valid/invalid data, content types, encoding, size limits, and health checks. Terraform tests mock AWS and check IAM authorization, invoke-grant scope, retention, and throttling. Live operator tests confirmed signed GET/POST return 200, unsigned GET returns 403, and invalid POST returns 400.
+Local Python tests cover valid/invalid data, content types, encoding, size limits, and health checks. Terraform tests mock AWS and check IAM authorization, invoke-grant scope, retention, and throttling. Live operator tests confirmed signed health and High/Medium/Low assessments return 200, unsigned access returns 403, and invalid POST returns 400. Assessments passed through Lambda and the private ALB to FastAPI with no-store headers. One direct warm Lambda assessment reported 9.46 ms execution; three API round trips were 210?601 ms. These are observed test samples, not performance guarantees. See the [Lambda connection guide](lambda-backend.md) for network permissions and explicit disconnect.

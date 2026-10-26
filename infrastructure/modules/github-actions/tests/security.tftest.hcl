@@ -32,6 +32,18 @@ variables {
 
 run "scoped_github_access" {
   command = apply
+  assert {
+    condition     = jsondecode(aws_iam_policy.lambda_boundary.policy).Statement[1].Condition.StringEquals["aws:RequestedRegion"] == "us-east-1" && jsondecode(aws_iam_policy.lambda_boundary.policy).Statement[2].Effect == "Deny" && jsondecode(aws_iam_policy.lambda_boundary.policy).Statement[2].Condition.ArnEquals["lambda:SourceFunctionArn"] == local.function_arn
+    error_message = "The operator boundary must retain the function-code ENI deny even if CI edits inline policies."
+  }
+  assert {
+    condition     = one([for s in jsondecode(aws_iam_role_policy.deployment.policy).Statement : s if s.Sid == "ReadAlbDependency"]).Resource == "${local.state_bucket_arn}/dev/alb/terraform.tfstate" && one([for s in jsondecode(aws_iam_role_policy.deployment.policy).Statement : s if s.Sid == "ReadAlbDependency"]).Action == "s3:GetObject" && !contains(one([for s in jsondecode(aws_iam_role_policy.deployment.policy).Statement : s if s.Sid == "ManageOneLambda"]).Action, "lambda:UpdateFunctionConfiguration")
+    error_message = "CI may only read ALB state and must not bypass the scoped Lambda configuration statement."
+  }
+  assert {
+    condition     = toset(one([for s in jsondecode(aws_iam_role_policy.deployment.policy).Statement : s if s.Sid == "ConfigureLambdaInExistingNetwork"]).Condition["ForAllValues:StringEquals"]["lambda:SubnetIds"]) == toset(data.aws_subnets.demo_network.ids) && one([for s in jsondecode(aws_iam_role_policy.deployment.policy).Statement : s if s.Sid == "ConfigureLambdaInExistingNetwork"]).Resource == local.function_arn
+    error_message = "Lambda configuration must remain scoped to the named function and existing selected subnets."
+  }
 
   assert {
     condition     = contains(jsondecode(aws_iam_policy.demo_nodes_boundary.policy).Statement[length(jsondecode(aws_iam_policy.demo_nodes_boundary.policy).Statement) - 1].Resource, "arn:aws:ecr:us-east-1:602401143452:repository/amazon/aws-network-policy-agent")
@@ -87,13 +99,13 @@ run "scoped_github_access" {
   }
 
   assert {
-    condition     = alltrue([for statement in jsondecode(aws_iam_role_policy.deployment.policy).Statement : statement.Resource != "*" || try(statement.Sid == "DiscoverLogGroupsInDevRegion" && statement.Action == "logs:DescribeLogGroups" && statement.Condition.StringEquals["aws:RequestedRegion"] == "us-east-1", false)])
-    error_message = "Only regional log-group discovery can use an unscoped resource."
+    condition     = alltrue([for statement in jsondecode(aws_iam_role_policy.deployment.policy).Statement : statement.Resource != "*" || try(contains(["DiscoverLogGroupsInDevRegion", "DiscoverLambdaNetwork"], statement.Sid) && statement.Condition.StringEquals["aws:RequestedRegion"] == "us-east-1", false)])
+    error_message = "Only the named regional discovery statements may use unscoped resources."
   }
 
   assert {
     condition     = toset(jsondecode(aws_iam_policy.lambda_boundary.policy).Statement[0].Action) == toset(["logs:CreateLogStream", "logs:PutLogEvents"]) && jsondecode(aws_iam_policy.lambda_boundary.policy).Statement[0].Resource == "${local.log_group_arn}:log-stream:*"
-    error_message = "The execution role boundary must cap permissions at this function's logs."
+    error_message = "Logging permissions must remain scoped to this function's streams."
   }
 
   assert {

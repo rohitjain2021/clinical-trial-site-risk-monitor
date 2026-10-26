@@ -11,6 +11,11 @@ on:
         required: true
         type: boolean
         default: false
+      disconnect_backend:
+        description: 'Detach Lambda from the backend before explicit ALB/EKS teardown'
+        required: true
+        type: boolean
+        default: false
       publish_image:
         description: 'Publish the tested FastAPI image from main to private ECR'
         required: true
@@ -63,7 +68,7 @@ jobs:
           python -m pip install -r services/risk_service/requirements-dev.txt
           python -m unittest discover -s services/risk_service -p 'test_*.py' -v
       - name: Test EKS deployment safety
-        run: python -m unittest scripts.test_deploy_eks scripts.test_verify_service -v
+        run: python -m unittest scripts.test_deploy_eks scripts.test_verify_service scripts.test_lambda_backend -v
       - name: Check Terraform and Terragrunt formatting
         shell: bash
         run: |
@@ -239,6 +244,18 @@ jobs:
           allowed-account-ids: ${{ secrets.PROJECT_AWS_ACCOUNT_ID }}
           mask-aws-account-id: true
           role-session-name: github-${{ github.run_id }}
+      - name: Configure private ALB backend
+        env:
+          PROJECT_TF_STATE_BUCKET: ${{ secrets.PROJECT_TF_STATE_BUCKET }}
+          DISCONNECT_BACKEND: ${{ inputs.disconnect_backend }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$DISCONNECT_BACKEND" = 'true' ]; then
+            python scripts/configure_lambda_backend.py --disconnect
+          else
+            python scripts/configure_lambda_backend.py
+          fi
       - name: Initialize and validate dev Lambda
         run: |
           terragrunt --working-dir infrastructure/live/dev/lambda init -input=false
@@ -277,14 +294,33 @@ jobs:
             --user "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" \
             --header "X-Amz-Security-Token: $AWS_SESSION_TOKEN" \
             "$api_url/health" > "$RUNNER_TEMP/api-health.json"
-          curl --fail-with-body --silent --show-error --max-time 20 \
+          assessment_status=$(curl --silent --show-error --max-time 20 \
             --aws-sigv4 'aws:amz:us-east-1:execute-api' \
             --user "$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY" \
             --header "X-Amz-Security-Token: $AWS_SESSION_TOKEN" \
             --header 'Content-Type: application/json' \
             --data-binary @docs/examples/site-assessment.json \
-            "$api_url/site-assessments" > "$RUNNER_TEMP/api-assessment.json"
+            --output "$RUNNER_TEMP/api-assessment.json" --write-out '%{http_code}' \
+            "$api_url/site-assessments")
+          export ASSESSMENT_STATUS="$assessment_status"
           unsigned_status=$(curl --silent --show-error --max-time 20 --output /dev/null \
             --write-out '%{http_code}' "$api_url/health")
           test "$unsigned_status" = '403'
-          python -c "import json, os, pathlib; root = pathlib.Path(os.environ['RUNNER_TEMP']); assert json.loads((root / 'api-health.json').read_text())['status'] == 'ok'; assert json.loads((root / 'api-assessment.json').read_text())['status'] == 'validated'; print('Signed API health and submission passed; unsigned access rejected')"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          # Verify real risk output when connected; explicit disconnect must return 503.
+          root = Path(os.environ["RUNNER_TEMP"])
+          assert json.loads((root / "api-health.json").read_text())["status"] == "ok"
+          result = json.loads((root / "api-assessment.json").read_text())
+          if os.environ["RISK_BACKEND_ENABLED"] == "true":
+              assert os.environ["ASSESSMENT_STATUS"] == "200"
+              assert result["site_id"] == "SITE-001" and result["risk_level"] == "High"
+              assert len(result["reasons"]) == 5 and result["rules_version"]
+              print("Signed API assessment reached FastAPI; unsigned access rejected.")
+          else:
+              assert os.environ["ASSESSMENT_STATUS"] == "503"
+              print("Lambda liveness passed; assessment reports disconnected backend; unsigned access rejected.")
+          PY
