@@ -1,6 +1,6 @@
 # Clinical Trial Site Risk Monitor
 
-Clinical trial site risk monitoring platform using AWS, Kubernetes, Snowflake, Terraform, Terragrunt, and AI-driven risk analysis.
+A prototype for monitoring clinical trial site performance using rule-based risk scoring and AI-generated explanations.
 
 ## Problem Statement
 
@@ -27,11 +27,11 @@ The application provides an easy way to review trial-site performance and detect
 
 ## Architecture
 
-![Clinical Trial Site Risk Monitor architecture showing signed Streamlit API integration, deployed Lambda, internal ALB, EKS/FastAPI, ECR image delivery, and planned Snowflake and Bedrock connections](docs/images/clinical-trial-site-risk-monitor-architecture.png)
+![Clinical Trial Site Risk Monitor architecture showing the verified Streamlit, API Gateway, Lambda, internal ALB, EKS/FastAPI, and Nova Micro connection, with ECR image delivery and Snowflake planned](docs/images/clinical-trial-site-risk-monitor-architecture.png)
 
 Terragrunt manages environment configuration and orchestrates Terraform, which provisions the AWS infrastructure shown above.
 
-The diagram shows the target architecture. EKS/FastAPI and the internal ALB now run privately using the published ECR image. Lambda calls the private ALB. Streamlit supports signed API requests; its hosted connection requires the private Secrets setup described in the [Streamlit guide](docs/streamlit.md). Snowflake and Bedrock remain planned.
+The working request path is Streamlit Community Cloud -> API Gateway -> Lambda -> internal ALB -> FastAPI on EKS. FastAPI calculates the risk using Python rules and calls Amazon Bedrock Nova Micro for a separate explanation. The hosted UI and AI response are verified. GitHub Actions publishes the container to ECR; Terraform and Terragrunt manage AWS infrastructure. Snowflake storage remains planned.
 
 ## Development Setup
 
@@ -43,15 +43,15 @@ GitHub Actions runs checks on pull requests and produces a development deploymen
 
 The manual [EKS deployment workflow](docs/deployment.md) plans by default and provisions EKS/FastAPI when deployment is explicitly selected. Resources remain running; there is no Start/Stop lifecycle or automatic destruction. The main-branch EKS/FastAPI workflow has passed. The separate operator-run ALB unit has also passed private HTTP verification; see the [ALB guide](docs/alb.md).
 
-**Development EKS status:** provisioned, with FastAPI running privately. Health, risk assessment, cache-control, and invalid-input checks passed through both the Kubernetes Service and private ALB. Resources remain running until teardown is explicitly requested.
+**Development status:** FastAPI and Nova Micro explanations are deployed. Signed API tests returned the expected High, Medium, and Low results with available AI explanations. The hosted Streamlit page also displays the AI response. Health, cache-control, and invalid-input checks passed. Resources remain running until teardown is explicitly requested.
 
 ## API
 
-The development HTTP API provides authenticated `GET /health` and `POST /site-assessments` routes. Lambda validates site records and calls FastAPI through the private ALB to return prototype risk levels and reasons. Records are not stored. See the [API guide](docs/api.md) for the contract, authentication, and example data.
+The development HTTP API provides authenticated `GET /health` and `POST /site-assessments` routes. Lambda validates site records and calls FastAPI through the private ALB to return prototype risk levels, reasons, and an optional Nova Micro explanation. AI text does not determine or change the score; if the model is unavailable, the calculated risk result still returns. Records are not stored. See the [API guide](docs/api.md) for the contract, authentication, and example data.
 
 ## Things to Do
 
-The authenticated API Gateway -> Lambda -> ALB -> FastAPI path is deployed and verified. The following work remains:
+The hosted Streamlit -> API Gateway -> Lambda -> ALB -> FastAPI -> Bedrock flow is deployed and verified. Completed work and remaining tasks are tracked below:
 
 - [x] Document [prototype risk rules](docs/risk-rules.md), classification reasons, and sample cases. Thresholds require review before operational use.
 - [x] Implement and test the standalone prototype risk calculation locally; it is used by FastAPI behind the deployed API.
@@ -72,13 +72,14 @@ The authenticated API Gateway -> Lambda -> ALB -> FastAPI path is deployed and v
 - [x] Connect Lambda to the risk service through the ALB and verify signed High/Medium/Low assessments.
 - [x] Merge the Lambda integration changes; the backend is deployed and verified.
 - [ ] Add Snowflake storage for trial-site data and assessment results.
-- [x] Build and verify a simple local Streamlit interface with copy-paste JSON and risk results.
+- [x] Build and verify the Streamlit interface with risk results.
+- [x] Add a navy-and-teal dashboard with readable report input, manual fields, and synthetic examples (prepared locally; hosted UI update pending).
 - [x] Add signed API requests and safe backend errors to the single-site Streamlit UI.
 - [x] Save private Community Cloud Secrets and verify the hosted Streamlit form (High risk and five reasons).
 - [ ] Extend Streamlit for multiple sites.
 - [x] Define dedicated, route-scoped Streamlit API access through Terraform and Terragrunt. Hosting uses Streamlit Community Cloud.
 - [x] Implement optional Nova Micro explanations, scoped pod access, and UI success/fallback behavior; test the real model locally.
-- [ ] Publish and deploy the Bedrock-capable image, then verify EKS identity and the hosted AI explanation.
+- [x] Publish and deploy the Bedrock-capable image, then verify EKS identity and the hosted AI explanation.
 - [ ] Extend CI/CD to deploy the ALB unit and remaining application components.
 - [ ] Add monitoring, alerts, and end-to-end tests for the complete workflow.
 - [x] Update the architecture diagram with GitHub Actions, Docker, ECR, service connections, and implemented versus planned components.
@@ -91,7 +92,7 @@ The authenticated API Gateway -> Lambda -> ALB -> FastAPI path is deployed and v
 
 ### Streamlit UI and API Connection
 
-[Read the Streamlit guide](docs/streamlit.md) for hosted Secrets configuration, scoped AWS access, copy-paste sample data, and local setup.
+[Read the Streamlit guide](docs/streamlit.md) for the dashboard design, copy-paste site reports, manual input, private hosted configuration, and local setup.
 
 ### EKS Deployment
 

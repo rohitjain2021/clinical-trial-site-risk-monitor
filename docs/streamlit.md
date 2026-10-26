@@ -1,6 +1,36 @@
 # Streamlit Interface
 
-Paste one synthetic site record as JSON, click **Assess site**, and read the risk level and reasons. The existing [sample](examples/site-assessment.json) fills the form and is available in **Copy sample JSON**. The UI keeps risk rules in FastAPI and stores no submissions.
+The navy-and-teal clinical dashboard supports two ways to review one site:
+
+- **Paste a report:** copy meaningful labelled lines, with no JSON syntax.
+- **Fill in fields:** enter site details and numeric counts in a form.
+
+Choose a synthetic example, click **Assess site**, and review enrollment, schedule delay, unresolved issues, the risk rating, numbered reasons, and an optional AI explanation. The empty results panel shows placeholders until a submission succeeds. Changing examples or input methods clears the visible assessment; no extra model call is made until you submit.
+
+## Copy-Paste Example
+
+Copy the following report into **Site report**, or use [the sample text file](examples/site-report.txt):
+
+```text
+Site ID: SITE-001
+Site name: Northbridge Research Center
+Enrollment target: 60
+Patients enrolled: 21
+Days behind schedule: 18
+Patient dropouts: 2
+Protocol deviations: 1
+Unresolved issues: 3
+```
+
+Keep one `Field: value` per line and use the sample's field names. Names may contain spaces and punctuation. Counts and days must be nonnegative whole numbers; the enrollment target must be positive. The app rejects missing, duplicate, or unrecognized fields and does not guess values from arbitrary prose. It converts the report to the existing API format internally; field validation and risk scoring stay in the backend.
+
+The examples are **Delayed enrollment** (High), **Some operational concerns** (Medium), and **Meeting operational targets** (Low). Their ratings are returned by the backend, not assigned by the UI. Use synthetic data only.
+
+## Visual Design
+
+The selected design uses navy headers, teal actions, a light background, white panels, colored risk badges, metric cards, an enrollment progress bar, and a separate AI explanation panel. Layout and interactive controls remain native Streamlit. Theme settings are in `.streamlit/config.toml`; local styling is in `services/streamlit_ui/style.css`. CSS introduces no extra packages or remote assets. All site names and reason text are escaped before custom HTML rendering; model output is displayed as plain text.
+
+These are frontend changes only. The API contract, server-side SigV4 signing, secret handling, deterministic rules, and model-failure fallback stay in place. No new AWS infrastructure is provisioned.
 
 ## Hosted API Connection
 
@@ -39,7 +69,7 @@ secret_access_key = "<dedicated-ui-secret>"
 # session_token = "<token>" # Only for temporary credentials; omit for this IAM key.
 ```
 
-The page should say **Backend: AWS API**. Click **Assess site** with the sample and expect **High** with five reasons. Use the Medium/Low examples in the [risk rules](risk-rules.md) to check other results. Malformed JSON, invalid fields, denied access, and unavailable backends show generic readable errors without private endpoint or credential details.
+The page should say **Backend: AWS API**. Click **Assess site** with the sample and expect **High** with five reasons. Use the Medium/Low examples in the [risk rules](risk-rules.md) to check other results. Malformed reports, invalid fields, denied access, and unavailable backends show readable errors without private endpoint or credential details.
 
 This authenticates the Streamlit server to AWS; it does not add individual user authentication to the page. Anyone allowed to use the hosted app can submit assessments through its scoped identity. Keep the demo synthetic; use Community Cloud sharing controls when access needs to be restricted.
 
@@ -67,10 +97,16 @@ Run the client/form tests without AWS access:
 services/streamlit_ui/.venv/Scripts/python.exe -m unittest discover -s services/streamlit_ui -p 'test_*.py' -v
 ```
 
-Tests use synthetic credentials and check actual SigV4 signing, temporary session tokens, local mode, request-size limits, endpoint validation, safe errors, and real Streamlit form submission and recovery. CI also runs the mocked Terraform policy test. Hosted verification requires merged code and the private Secrets setup above; local client tests alone do not establish that Community Cloud has been configured.
+Tests use synthetic credentials and check actual SigV4 signing, temporary session tokens, local mode, request-size limits, endpoint validation, safe errors, report parsing, manual form submission, example switching, and AI success/fallback. The three synthetic examples are also checked against the existing calculator. CI also runs the mocked Terraform policy test. Hosted verification requires merged code and the private Secrets setup above; local client tests alone do not establish that Community Cloud has been configured.
 
-Live operator verification passed with the Terraform-created UI identity: High/Medium/Low assessments and the actual Streamlit form returned the expected results through AWS; the sample form showed five reasons. A signed health request using the UI key returned `403`, and IAM simulation denied S3 discovery, EKS deletion, and IAM creation. Access Analyzer reported zero policy findings. These verify the local UI-to-cloud path; hosted Secrets setup and hosted-form verification remain pending.
+Live operator verification passed with the Terraform-created UI identity: High/Medium/Low assessments and the actual Streamlit form returned the expected results through AWS; the sample form showed five reasons. A signed health request using the UI key returned `403`, and IAM simulation denied S3 discovery, EKS deletion, and IAM creation. Access Analyzer reported zero policy findings. Hosted Secrets setup and hosted-form verification have also been completed; the operator confirmed the sample result and subsequent AI explanation in Community Cloud.
 
 ## Optional AI Summary
 
-After the [Bedrock rollout](bedrock.md), successful assessments also show **AI explanation** below the original reasons. If the model is unavailable, the score and reasons still display. The UI key and Secrets configuration require no additional permissions. Hosted High/five-reason scoring has been verified; hosted model output remains pending the new backend image. The UI HTTP timeout is 25 seconds to allow the optional summary.
+After the [Bedrock rollout](bedrock.md), successful assessments also show **AI explanation** below the original reasons. If the model is unavailable, the score and reasons still display. The UI key and Secrets configuration require no additional permissions. Hosted High/five-reason scoring and the AI explanation have been verified after the new backend image rollout. The UI HTTP timeout is 25 seconds to allow the optional summary.
+
+## Dashboard Update Status
+
+The redesigned report form passed live AWS tests for all three synthetic scenarios: High, Medium, and Low each returned the expected rating and an available AI explanation. Eight offline UI/client tests passed. Browser visual inspection could not be completed because computer use could not verify the current Chrome URL; use the local preview to review appearance. The dashboard changes are prepared locally and have not been published to the hosted app yet.
+
+After committing, pushing, and merging the frontend changes into the branch tracked by Community Cloud, let Streamlit rebuild or reboot the app. No Lambda or EKS redeployment and no Secrets changes are needed for this dashboard update.

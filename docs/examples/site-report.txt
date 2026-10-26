@@ -1,0 +1,8 @@
+Site ID: SITE-001
+Site name: Northbridge Research Center
+Enrollment target: 60
+Patients enrolled: 21
+Days behind schedule: 18
+Patient dropouts: 2
+Protocol deviations: 1
+Unresolved issues: 3
