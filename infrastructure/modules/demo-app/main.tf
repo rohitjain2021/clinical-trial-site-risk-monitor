@@ -18,6 +18,8 @@ provider "kubernetes" {
 locals {
   name   = "clinical-trial-risk-service"
   labels = { "app.kubernetes.io/name" = "clinical-trial-risk-service", "app.kubernetes.io/part-of" = "clinical-trial-site-risk-monitor" }
+  # The verification client must never become an HTTP Service endpoint.
+  verification_labels = merge(local.labels, { "app.kubernetes.io/name" = "${local.name}-verification" })
 }
 
 resource "kubernetes_namespace_v1" "demo" {
@@ -106,13 +108,13 @@ resource "kubernetes_job_v1" "verify" {
   metadata {
     name      = "risk-service-verification"
     namespace = kubernetes_namespace_v1.demo.metadata[0].name
-    labels    = local.labels
+    labels    = local.verification_labels
   }
   spec {
     backoff_limit           = 0
     active_deadline_seconds = 120
     template {
-      metadata { labels = local.labels }
+      metadata { labels = local.verification_labels }
       spec {
         restart_policy                  = "Never"
         automount_service_account_token = false
@@ -137,11 +139,20 @@ resource "kubernetes_job_v1" "verify" {
             # Exercise the published image over the Kubernetes Service using synthetic data.
             import json
             import os
+            import time
             from urllib.request import Request, urlopen
-            from urllib.error import HTTPError
+            from urllib.error import HTTPError, URLError
             base = "http://clinical-trial-risk-service:8000"
-            with urlopen(base + "/health", timeout=10) as response:
-                assert response.status == 200 and json.load(response)["status"] == "ok"
+            # Service endpoint routing may briefly lag the Deployment's readiness.
+            for attempt in range(12):
+                try:
+                    with urlopen(base + "/health", timeout=3) as response:
+                        assert response.status == 200 and json.load(response)["status"] == "ok"
+                    break
+                except (URLError, TimeoutError):
+                    if attempt == 11:
+                        raise
+                    time.sleep(2)
             request = Request(base + "/site-assessments", data=os.environ["SITE_JSON"].encode(), headers={"Content-Type": "application/json"})
             with urlopen(request, timeout=10) as response:
                 result = json.load(response)

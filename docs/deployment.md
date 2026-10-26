@@ -1,12 +1,14 @@
 # EKS and FastAPI Deployment
 
-Use **Actions → Deploy EKS and risk service → Run workflow** on `main` after this change is merged. This replaces the disposable Start/Stop workflow.
+Use **Actions → Deploy EKS and risk service → Run workflow** on `main`. Deployment leaves resources provisioned until an operator explicitly requests teardown.
 
-## Session Handoff
+## Current Validation Status
 
-The development EKS environment has been removed through reviewed Terraform plans. The application state and EKS state contain zero managed resources. AWS verification confirmed no control plane, worker instances, root volumes, or project EKS service roles remain. ECR images, Lambda/API, the existing network, GitHub IAM bootstrap, and the state backend were preserved.
+EKS, its worker group, and private FastAPI are provisioned. The application rollout succeeded, but the initial HTTP verification job failed with connection refused. Its pod shared the Service's application labels, so the Service could select the verification client as an HTTP backend. The corrected job uses distinct pod labels, and its health check retries transient startup failures for a bounded period.
 
-Worker creation reached ACTIVE after the service-role lookup correction. FastAPI rollout then encountered a missing networking-agent image permission; that exact repository was added to both the worker policy and its boundary through Terraform. The full HTTP verification has not passed yet. Merge [PR #15](https://github.com/rohitjain2021/clinical-trial-site-risk-monitor/pull/15) before recreating the environment so deployment uses the corrected image policy. Then run a fresh plan and explicitly select deployment when ready. Resources stay running after deployment; there is no automatic teardown.
+An inspected Terraform plan replaced only the failed verification job. Its real in-cluster health, High-risk assessment, cache-control, and invalid-input checks all passed. EKS and FastAPI were preserved. Merge this verification fix and rerun the main-branch deployment workflow to obtain a successful complete workflow result; the earlier failed run remains failed.
+
+The earlier service-role and networking-image permissions are already merged. Resources remain running. Teardown happens only on explicit request; no idle timer or automatic cleanup is configured.
 
 ## Plan
 
@@ -42,4 +44,4 @@ Cancellation can interrupt state persistence. Before retrying, verify the previo
 
 ## Validation
 
-Local tests cover main-only execution, plan-only behavior, the project resource allowlist, rejection of infrastructure deletion/replacement, repeatable HTTP verification, and leaving resources intact on failure. Mocked Terraform tests cover IAM scope, EKS hardening, and the private application runtime. A successful live deployment through the replacement workflow still requires merging and running it on `main`.
+Local tests cover main-only execution, plan-only behavior, the project resource allowlist, rejection of infrastructure deletion/replacement, repeatable HTTP verification, and leaving resources intact on failure. Mocked Terraform tests cover IAM scope, EKS hardening, and the private application runtime. A Terraform regression assertion fails with the old labels and passes with distinct verification labels. The actual embedded Python verifier was checked with a transient connection failure and persistent unavailability. The corrected real in-cluster job passed; the full GitHub workflow needs rerunning after merge.
