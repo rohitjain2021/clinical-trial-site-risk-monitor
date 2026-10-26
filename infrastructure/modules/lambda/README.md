@@ -4,7 +4,7 @@ Packages the standard-library Python handler and defines Lambda, its execution r
 
 ## Configuration
 
-The handler remains `handler.lambda_handler`, Python 3.13, 128 MB. Backend HTTP timeout is 3 seconds, Lambda timeout 8 seconds, and API integration timeout 10 seconds. Only `handler.py` is packaged; no third-party dependencies or local caches are included. `source_code_hash` tracks code changes.
+The handler remains `handler.lambda_handler`, Python 3.13, 128 MB. Backend HTTP timeout is 12 seconds, Lambda timeout 18 seconds, and API integration timeout 20 seconds, allowing the optional Nova Micro explanation. Only `handler.py` is packaged; no third-party dependencies or local caches are included. `source_code_hash` tracks code changes.
 
 The optional sensitive `backend` object contains the internal project ALB URL, two existing subnet IDs, and the dedicated client security group ID. The Terragrunt unit reads this from ignored `backend.local.hcl`, generated from private ALB state. A null backend removes the URL and VPC attachment; liveness stays available and valid assessments return 503. No networking or backend resources are created by this module.
 

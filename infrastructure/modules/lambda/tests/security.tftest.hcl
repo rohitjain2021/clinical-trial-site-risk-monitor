@@ -84,7 +84,7 @@ run "connect_only_configured_backend" {
     }
   }
   assert {
-    condition     = toset(aws_lambda_function.this.vpc_config[0].subnet_ids) == toset(var.backend.subnet_ids) && toset(aws_lambda_function.this.vpc_config[0].security_group_ids) == toset([var.backend.security_group_id]) && aws_lambda_function.this.environment[0].variables["RISK_API_URL"] == var.backend.url && aws_lambda_function.this.timeout == 8 && aws_apigatewayv2_integration.lambda.timeout_milliseconds == 10000
+    condition     = toset(aws_lambda_function.this.vpc_config[0].subnet_ids) == toset(var.backend.subnet_ids) && toset(aws_lambda_function.this.vpc_config[0].security_group_ids) == toset([var.backend.security_group_id]) && aws_lambda_function.this.environment[0].variables["RISK_API_URL"] == var.backend.url && aws_lambda_function.this.timeout == 18 && aws_apigatewayv2_integration.lambda.timeout_milliseconds == 20000
     error_message = "Use only the configured ALB client network, with backend timeout shorter than Lambda and API timeouts."
   }
 }

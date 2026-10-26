@@ -42,6 +42,7 @@ resource "kubernetes_deployment_v1" "risk" {
       metadata { labels = local.labels }
       spec {
         automount_service_account_token = false
+        service_account_name            = kubernetes_service_account_v1.risk.metadata[0].name
         security_context {
           run_as_non_root = true
           run_as_user     = 10001
@@ -51,6 +52,22 @@ resource "kubernetes_deployment_v1" "risk" {
         container {
           name  = "risk-service"
           image = var.image_uri
+          env {
+            name  = "BEDROCK_ENABLED"
+            value = "true"
+          }
+          env {
+            name  = "AWS_DEFAULT_REGION"
+            value = "us-east-1"
+          }
+          env {
+            name  = "AWS_STS_REGIONAL_ENDPOINTS"
+            value = "regional"
+          }
+          env {
+            name  = "AWS_EC2_METADATA_DISABLED"
+            value = "true"
+          }
           port { container_port = 8000 }
           security_context {
             allow_privilege_escalation = false
@@ -85,6 +102,16 @@ resource "kubernetes_deployment_v1" "risk" {
     update = "10m"
     delete = "5m"
   }
+}
+
+resource "kubernetes_service_account_v1" "risk" {
+  metadata {
+    name        = local.name
+    namespace   = kubernetes_namespace_v1.demo.metadata[0].name
+    labels      = local.labels
+    annotations = { "eks.amazonaws.com/role-arn" = var.risk_service_role_arn }
+  }
+  automount_service_account_token = false
 }
 
 resource "kubernetes_service_v1" "risk" {
@@ -135,6 +162,10 @@ resource "kubernetes_job_v1" "verify" {
           env {
             name  = "SITE_JSON"
             value = var.site_example_json
+          }
+          env {
+            name  = "REQUIRE_EXPLANATION"
+            value = "true"
           }
           command = ["python", "-c", file("${path.module}/verify.py")]
           security_context {

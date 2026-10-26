@@ -68,3 +68,7 @@ terragrunt --working-dir infrastructure/live/dev/lambda output -raw api_base_url
 ```
 
 Local Python tests cover valid/invalid data, content types, encoding, size limits, and health checks. Terraform tests mock AWS and check IAM authorization, invoke-grant scope, retention, and throttling. Live operator tests confirmed signed health and High/Medium/Low assessments return 200, unsigned access returns 403, and invalid POST returns 400. Assessments passed through Lambda and the private ALB to FastAPI with no-store headers. One direct warm Lambda assessment reported 9.46 ms execution; three API round trips were 210?601 ms. These are observed test samples, not performance guarantees. See the [Lambda connection guide](lambda-backend.md) for network permissions and explicit disconnect.
+
+## Optional AI Explanation
+
+The Bedrock-capable service adds an optional `explanation` object with `status`, `model_id`, and `text`. The original score and reasons are unchanged. Model failure returns an unavailable explanation with a valid `200` assessment; disabled mode omits this object. See the [Bedrock contract and rollout guide](bedrock.md). This feature requires the new image and Lambda forwarding changes to be deployed; the current pre-rollout API response remains valid.

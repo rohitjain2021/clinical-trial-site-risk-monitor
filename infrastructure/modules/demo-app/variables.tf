@@ -1,4 +1,13 @@
 variable "cluster_name" { type = string }
+variable "risk_service_role_arn" {
+  description = "Dedicated IRSA role for Nova Micro; no static credentials are mounted."
+  type        = string
+  sensitive   = true
+  validation {
+    condition     = can(regex("^arn:aws:iam::[0-9]{12}:role/clinical-trial-site-risk-monitor-dev-eks-risk-service$", var.risk_service_role_arn))
+    error_message = "Use only this project's dedicated EKS risk-service role."
+  }
+}
 variable "cluster_endpoint" {
   type      = string
   sensitive = true

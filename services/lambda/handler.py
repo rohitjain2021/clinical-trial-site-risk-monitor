@@ -73,7 +73,7 @@ def _assess_site(record):
                       data=json.dumps(record, separators=(",", ":")).encode("utf-8"),
                       headers={"Content-Type": "application/json"})
     try:
-        with urlopen(request, timeout=3) as response:
+        with urlopen(request, timeout=12) as response:
             raw = response.read(MAX_BODY_BYTES + 1)
             if response.status != 200 or len(raw) > MAX_BODY_BYTES:
                 return _response(502, {"error": "Invalid risk service response."})
@@ -85,7 +85,19 @@ def _assess_site(record):
                 or not isinstance(result.get("reasons"), list) or not result["reasons"]
                 or not all(isinstance(reason, str) and reason for reason in result["reasons"])):
             return _response(502, {"error": "Invalid risk service response."})
-        return _response(200, {key: result[key] for key in ("site_id", "risk_level", "rules_version", "reasons")})
+        body = {key: result[key] for key in ("site_id", "risk_level", "rules_version", "reasons")}
+        # Optional AI output cannot invalidate an otherwise valid rule-based result.
+        explanation = result.get("explanation")
+        if isinstance(explanation, dict):
+            text = explanation.get("text")
+            available = (explanation.get("status") == "available"
+                         and explanation.get("model_id") == "amazon.nova-micro-v1:0"
+                         and isinstance(text, str) and 0 < len(text.strip()) <= 2000)
+            body["explanation"] = {
+                "status": "available" if available else "unavailable",
+                "model_id": "amazon.nova-micro-v1:0", "text": text if available else None,
+            }
+        return _response(200, body)
     except HTTPError as error:
         error.close()
         return _response(502, {"error": "Risk service request failed."})

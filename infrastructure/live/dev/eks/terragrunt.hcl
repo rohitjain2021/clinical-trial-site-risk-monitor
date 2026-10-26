@@ -20,6 +20,7 @@ inputs = {
     cluster = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
     nodes   = "arn:aws:iam::${local.environment.aws_account_id}:policy/clinical-trial-site-risk-monitor-dev-eks-nodes-boundary"
     cni     = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+    risk    = "arn:aws:iam::${local.environment.aws_account_id}:policy/clinical-trial-site-risk-monitor-dev-eks-risk-service-boundary"
   }
   demo_principal_arn    = "arn:aws:iam::${local.environment.aws_account_id}:role/clinical-trial-site-risk-monitor-dev-github-demo"
   cluster_name          = "clinical-trial-site-risk-monitor-dev-eks"

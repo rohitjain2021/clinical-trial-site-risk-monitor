@@ -14,7 +14,7 @@ AWS requires six EC2 actions on wildcard resources for Lambda-managed Hyperplane
 
 The Lambda workflow performs this discovery after OIDC authentication. With **deploy** checked and **disconnect_backend** unchecked, it plans and applies the existing Lambda using those settings. Pushes only plan. Terraform packages only the standard-library handler; no HTTP SDK dependency is added to Lambda. The ALB still has its separate operator provisioning unit.
 
-The backend HTTP timeout is 3 seconds, Lambda timeout 8 seconds, and API integration timeout 10 seconds. Responses use `Cache-Control: no-store`. Invalid input is rejected before any backend call. Backend output size and fields are checked; errors omit internal endpoints and exception details. See [API responses and errors](api.md).
+The backend HTTP timeout is 12 seconds, Lambda timeout 18 seconds, and API integration timeout 20 seconds, allowing the optional Nova Micro explanation. Responses use `Cache-Control: no-store`. Invalid input is rejected before any backend call. Backend output size and fields are checked; errors omit internal endpoints and exception details. See [API responses and errors](api.md).
 
 `GET /health` and direct `{}` invocation are Lambda liveness checks. They do not probe the backend. A valid assessment returns `503` when no backend is configured.
 

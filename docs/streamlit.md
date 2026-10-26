@@ -70,3 +70,7 @@ services/streamlit_ui/.venv/Scripts/python.exe -m unittest discover -s services/
 Tests use synthetic credentials and check actual SigV4 signing, temporary session tokens, local mode, request-size limits, endpoint validation, safe errors, and real Streamlit form submission and recovery. CI also runs the mocked Terraform policy test. Hosted verification requires merged code and the private Secrets setup above; local client tests alone do not establish that Community Cloud has been configured.
 
 Live operator verification passed with the Terraform-created UI identity: High/Medium/Low assessments and the actual Streamlit form returned the expected results through AWS; the sample form showed five reasons. A signed health request using the UI key returned `403`, and IAM simulation denied S3 discovery, EKS deletion, and IAM creation. Access Analyzer reported zero policy findings. These verify the local UI-to-cloud path; hosted Secrets setup and hosted-form verification remain pending.
+
+## Optional AI Summary
+
+After the [Bedrock rollout](bedrock.md), successful assessments also show **AI explanation** below the original reasons. If the model is unavailable, the score and reasons still display. The UI key and Secrets configuration require no additional permissions. Hosted High/five-reason scoring has been verified; hosted model output remains pending the new backend image. The UI HTTP timeout is 25 seconds to allow the optional summary.

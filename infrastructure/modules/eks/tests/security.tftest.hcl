@@ -46,6 +46,7 @@ variables {
     cluster = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
     nodes   = "arn:aws:iam::123456789012:policy/example-nodes-boundary"
     cni     = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+    risk    = "arn:aws:iam::123456789012:policy/example-risk-boundary"
   }
   cluster_name          = "clinical-trial-site-risk-monitor-dev-eks"
   admin_principal_arn   = "arn:aws:iam::123456789012:role/example-operator"
@@ -56,6 +57,15 @@ variables {
 
 run "restricted_development_cluster" {
   command = apply
+
+  assert {
+    condition     = aws_iam_role.risk.permissions_boundary == var.role_boundaries["risk"] && jsondecode(aws_iam_role.risk.assume_role_policy).Statement[0].Action == "sts:AssumeRoleWithWebIdentity" && jsondecode(aws_iam_role.risk.assume_role_policy).Statement[0].Condition.StringEquals["oidc.eks.us-east-1.amazonaws.com/id/EXAMPLE:sub"] == "system:serviceaccount:clinical-trial-site-risk-monitor-demo:clinical-trial-risk-service" && jsondecode(aws_iam_role.risk.assume_role_policy).Statement[0].Condition.StringEquals["oidc.eks.us-east-1.amazonaws.com/id/EXAMPLE:aud"] == "sts.amazonaws.com"
+    error_message = "Only the named application service account may assume the bounded Bedrock role."
+  }
+  assert {
+    condition     = length(jsondecode(aws_iam_role_policy.bedrock.policy).Statement) == 1 && jsondecode(aws_iam_role_policy.bedrock.policy).Statement[0].Action == "bedrock:InvokeModel" && jsondecode(aws_iam_role_policy.bedrock.policy).Statement[0].Resource == "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-micro-v1:0" && jsondecode(aws_iam_role_policy.bedrock.policy).Statement[0].Condition.StringEquals["aws:RequestedRegion"] == "us-east-1"
+    error_message = "The application can invoke only the regional Nova Micro foundation model."
+  }
 
   assert {
     condition     = contains(jsondecode(aws_iam_role_policy.node_images.policy).Statement[1].Resource, "arn:aws:ecr:us-east-1:602401143452:repository/amazon/aws-network-policy-agent")

@@ -30,6 +30,11 @@ def main():
         result = json.load(response)
         assert response.status == 200 and result["risk_level"] == "High" and len(result["reasons"]) == 5
         assert response.headers["Cache-Control"] == "no-store"
+        if os.environ.get("REQUIRE_EXPLANATION") == "true":
+            explanation = result.get("explanation", {})
+            assert explanation.get("status") == "available", "Nova Micro explanation was not available"
+            assert explanation.get("model_id") == "amazon.nova-micro-v1:0"
+            assert isinstance(explanation.get("text"), str) and 0 < len(explanation["text"].strip()) <= 2000
     try:
         urlopen(Request(base + "/site-assessments", data=b"{}",
                         headers={"Content-Type": "application/json"}), timeout=10)

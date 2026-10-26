@@ -28,6 +28,21 @@ def response(body):
 class VerificationTests(unittest.TestCase):
     """Check routing, bounded readiness, and rejection of incorrect API behavior."""
 
+    @patch.dict(os.environ, {"REQUIRE_EXPLANATION": "true"})
+    @patch.object(verify, "urlopen")
+    def test_bedrock_deployment_requires_real_explanation(self, request):
+        """Reject a healthy legacy image or model outage when verifying the Bedrock rollout."""
+        for explanation in (None, {"status": "unavailable", "text": None}):
+            result = {"risk_level": "High", "reasons": ["synthetic"] * 5}
+            if explanation is not None:
+                result["explanation"] = explanation
+            request.side_effect = [response({"status": "ok"}), response(result)]
+            with self.assertRaisesRegex(AssertionError, "Nova Micro"):
+                verify.main()
+        result["explanation"] = {"status": "available", "model_id": "amazon.nova-micro-v1:0", "text": "Synthetic summary."}
+        request.side_effect = [response({"status": "ok"}), response(result), HTTPError("http://example.invalid", 400, "invalid", {}, None)]
+        verify.main()
+
     @patch.object(verify.time, "sleep")
     @patch.object(verify, "urlopen")
     def test_transient_startup_then_real_checks(self, request, sleep):

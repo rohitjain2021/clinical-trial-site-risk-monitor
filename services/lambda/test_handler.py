@@ -62,6 +62,21 @@ class HandlerTests(unittest.TestCase):
         self.assertNotIn("Authorization", request.headers)
         self.assertEqual(response["headers"]["Cache-Control"], "no-store")
 
+    def test_optional_explanation_is_bounded_and_separate(self):
+        """Pass only safe AI fields and keep the deterministic result on bad AI output."""
+        backend = self.backend.return_value.__enter__.return_value
+        for text in ("High operational risk reflects enrollment delays.", "x" * 2001, None):
+            backend.read.return_value = json.dumps({**self.result, "explanation": {
+                "status": "available", "model_id": "amazon.nova-micro-v1:0", "text": text,
+                "private-extra": "DO-NOT-ECHO",
+            }}).encode()
+            response = lambda_handler(self.event(), None)
+            self.assertEqual(response["statusCode"], 200)
+            body = json.loads(response["body"])
+            self.assertEqual(body["risk_level"], "High")
+            self.assertNotIn("DO-NOT-ECHO", response["body"])
+            self.assertEqual(body["explanation"]["status"], "available" if text and len(text) <= 2000 else "unavailable")
+
     def test_reject_invalid_fields(self):
         """Reject invalid counts, zero targets, excess dropouts, and unknown data."""
         for field, value in (("actual_enrollment", -1), ("actual_enrollment", True),
