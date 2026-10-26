@@ -12,6 +12,7 @@ mock_provider "aws" {
 }
 
 variables {
+  ecr_repository_name  = "clinical-trial-site-risk-monitor-dev-risk-service"
   api_gateway_id       = "testapi"
   aws_account_id       = "123456789012"
   state_bucket         = "clinical-trial-site-risk-monitor-tfstate-dev-123456789012"
@@ -22,6 +23,16 @@ variables {
 
 run "scoped_github_access" {
   command = apply
+
+  assert {
+    condition     = length(jsondecode(aws_iam_role_policy.image_publish.policy).Statement) == 2 && jsondecode(aws_iam_role_policy.image_publish.policy).Statement[0].Action == "ecr:GetAuthorizationToken" && jsondecode(aws_iam_role_policy.image_publish.policy).Statement[0].Resource == "*" && jsondecode(aws_iam_role_policy.image_publish.policy).Statement[0].Condition.StringEquals["aws:RequestedRegion"] == "us-east-1"
+    error_message = "Only regional ECR login may use a wildcard resource in the publishing policy."
+  }
+
+  assert {
+    condition     = jsondecode(aws_iam_role_policy.image_publish.policy).Statement[1].Resource == "arn:aws:ecr:us-east-1:123456789012:repository/clinical-trial-site-risk-monitor-dev-risk-service" && toset(jsondecode(aws_iam_role_policy.image_publish.policy).Statement[1].Action) == toset(["ecr:BatchCheckLayerAvailability", "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload", "ecr:PutImage", "ecr:BatchGetImage", "ecr:DescribeImages"])
+    error_message = "Publishing must target only this repository, without image deletion or repository administration."
+  }
 
   assert {
     condition     = jsondecode(aws_iam_role.deployment.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:aud"] == "sts.amazonaws.com" && toset(jsondecode(aws_iam_role.deployment.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]) == toset(local.trusted_subjects) && alltrue([for subject in local.trusted_subjects : endswith(subject, ":ref:refs/heads/main") && !strcontains(subject, "*")])

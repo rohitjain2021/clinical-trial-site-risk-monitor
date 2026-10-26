@@ -11,6 +11,11 @@ on:
         required: true
         type: boolean
         default: false
+      publish_image:
+        description: 'Publish the tested FastAPI image from main to private ECR'
+        required: true
+        type: boolean
+        default: false
 
 # Pull requests have no OIDC permission and cannot assume the AWS deployment role.
 permissions:
@@ -74,7 +79,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for module in infrastructure/modules/lambda infrastructure/modules/github-actions infrastructure/bootstrap/state-backend; do
+          for module in infrastructure/modules/lambda infrastructure/modules/github-actions infrastructure/modules/ecr infrastructure/bootstrap/state-backend; do
             terraform -chdir="$module" init -backend=false -input=false
             terraform -chdir="$module" validate
             terraform -chdir="$module" test
@@ -91,6 +96,89 @@ jobs:
         run: docker build --pull -t clinical-trial-risk-service:local services/risk_service
       - name: Test container API and restricted runtime
         run: python3 scripts/check_container.py
+
+  publish-image:
+    needs: [checks, container]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.publish_image == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: clinical-trial-site-risk-monitor-dev-image-publish
+      cancel-in-progress: false
+    env:
+      ECR_REPOSITORY: clinical-trial-site-risk-monitor-dev-risk-service
+      PROJECT_AWS_ACCOUNT_ID: ${{ secrets.PROJECT_AWS_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, Node 24
+        with:
+          persist-credentials: false
+      # Test the exact image that will be published before obtaining AWS credentials.
+      - name: Build and test image to publish
+        run: |
+          docker build --pull -t clinical-trial-risk-service:local services/risk_service
+          python3 scripts/check_container.py
+      - name: Mask private registry identifiers
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$PROJECT_AWS_ACCOUNT_ID"
+          echo "::add-mask::$PROJECT_AWS_ACCOUNT_ID"
+          echo "::add-mask::$PROJECT_AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+      - name: Authenticate to AWS using OIDC
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.PROJECT_AWS_ACCOUNT_ID }}:role/clinical-trial-site-risk-monitor-dev-github-deploy
+          aws-region: us-east-1
+          allowed-account-ids: ${{ secrets.PROJECT_AWS_ACCOUNT_ID }}
+          mask-aws-account-id: true
+          role-session-name: image-${{ github.run_id }}
+      - name: Publish immutable commit image and verify ECR digest
+        shell: bash
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}/risk-service-docker
+        run: |
+          set -euo pipefail
+          registry="$PROJECT_AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+          image="$registry/$ECR_REPOSITORY:$GITHUB_SHA"
+          # Preserve an already published immutable tag on a workflow rerun.
+          if aws ecr describe-images --repository-name "$ECR_REPOSITORY" \
+            --image-ids "imageTag=$GITHUB_SHA" > "$RUNNER_TEMP/ecr-image.json" 2> "$RUNNER_TEMP/ecr-error.txt"; then
+            echo 'Commit image already exists; keeping its immutable version.'
+          elif grep -q 'ImageNotFoundException' "$RUNNER_TEMP/ecr-error.txt"; then
+            mkdir -p "$DOCKER_CONFIG"
+            aws ecr get-login-password --region "$AWS_REGION" |
+              docker login --username AWS --password-stdin "$registry"
+            docker tag clinical-trial-risk-service:local "$image"
+            docker push "$image"
+            aws ecr describe-images --repository-name "$ECR_REPOSITORY" \
+              --image-ids "imageTag=$GITHUB_SHA" > "$RUNNER_TEMP/ecr-image.json"
+          else
+            cat "$RUNNER_TEMP/ecr-error.txt" >&2
+            exit 1
+          fi
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          # Check the registry result without printing account-bearing image URLs.
+          detail = json.loads((Path(os.environ["RUNNER_TEMP"]) / "ecr-image.json").read_text())["imageDetails"][0]
+          assert os.environ["GITHUB_SHA"] in detail["imageTags"]
+          assert detail["imageDigest"].startswith("sha256:")
+          print("Immutable commit image verified in ECR.")
+          PY
+          echo "Risk-service image available for commit $GITHUB_SHA. EKS deployment is a separate step." >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove temporary registry credentials
+        if: always()
+        shell: bash
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}/risk-service-docker
+        run: |
+          # This job writes Docker credentials only into its own runner temp directory.
+          rm -f -- "$DOCKER_CONFIG/config.json"
 
   dev:
     needs: [checks, container]

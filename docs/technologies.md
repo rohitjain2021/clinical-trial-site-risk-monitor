@@ -366,15 +366,15 @@ Our current Lambda uses a ZIP package, not a container image. Choosing container
 
 # Amazon Elastic Container Registry (ECR)
 
-**Status: planned supporting service; no repository is provisioned yet.**
+**Status: private development repository provisioned; scoped manual image-publishing workflow implemented, with its first GitHub run pending merge.**
 
 ## What it is and what it does
 
 ECR is a container image registry: a place to store and retrieve versioned application images.
 
-## Why and how we plan to use it
+## Why and how we use it
 
-It is the proposed registry for the FastAPI image that EKS will run. Terraform will define the repository and access controls; CI will build and publish images once container deployment is implemented.
+It stores the FastAPI image that EKS will run. The Terraform module `infrastructure/modules/ecr` defines the private repository, and `infrastructure/live/dev/ecr` supplies its development name and shared state configuration. The GitHub access module defines scoped publishing permissions for main-branch OIDC, and the manual `publish-image` job builds, tests, and uploads a commit-tagged image. EKS pull permissions will be added with the cluster. See the [ECR guide](ecr.md) for deployment status and commands.
 
 ## Small example
 
@@ -382,7 +382,7 @@ It is the proposed registry for the FastAPI image that EKS will run. Terraform w
 CI builds image for commit abc123 -> ECR stores image -> EKS pulls that image
 ```
 
-The final repository name and image-versioning policy have not been defined.
+The repository is named `clinical-trial-site-risk-monitor-dev-risk-service`. Tags are immutable; CI should publish a distinct commit SHA tag for each image version.
 
 # Kubernetes
 

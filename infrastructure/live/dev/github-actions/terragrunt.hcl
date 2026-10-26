@@ -16,7 +16,12 @@ dependency "lambda" {
   config_path = "../lambda"
 }
 
+dependency "ecr" {
+  config_path = "../ecr"
+}
+
 inputs = {
+  ecr_repository_name  = dependency.ecr.outputs.repository_name
   api_gateway_id       = dependency.lambda.outputs.api_gateway_id
   aws_account_id       = local.environment.aws_account_id
   state_bucket         = local.environment.state_bucket
