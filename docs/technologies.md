@@ -330,7 +330,7 @@ Streamlit is a Python framework for interactive data applications.
 
 ## Why and how we plan to use it
 
-`services/streamlit_ui/app.py` provides a navy-and-teal clinical dashboard with readable report input or manual fields, three synthetic examples, metric cards, risk reasons, and a separate AI explanation. The UI converts labelled report lines to the existing API schema internally. It calls authenticated API Gateway when private cloud settings are present, or local FastAPI in local demo mode. Classification stays in FastAPI. Streamlit `1.66.1` and Boto3 `1.43.118` are pinned in the UI requirements. Boto3 supplies credentials and Botocore signs the exact POST body on the server; keys are never sent to the browser. The dedicated assessment-only identity is provisioned through Terraform. See the [Streamlit integration guide](streamlit.md).
+`services/streamlit_ui/app.py` provides a dark-blue-and-orange clinical dashboard with readable report input or manual fields, three synthetic examples, metric cards, risk reasons, and a separate AI explanation. The UI converts labelled report lines to the existing API schema internally. It calls authenticated API Gateway when private cloud settings are present, or local FastAPI in local demo mode. Classification stays in FastAPI. Streamlit `1.66.1` and Boto3 `1.43.118` are pinned in the UI requirements. Boto3 supplies credentials and Botocore signs the exact POST body on the server; keys are never sent to the browser. The dedicated assessment-only identity is provisioned through Terraform. See the [Streamlit integration guide](streamlit.md).
 
 ## Small example
 

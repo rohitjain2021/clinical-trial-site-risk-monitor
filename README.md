@@ -4,26 +4,36 @@ A prototype for monitoring clinical trial site performance using rule-based risk
 
 ## Problem Statement
 
-Clinical trials are often conducted across multiple hospitals, clinics, and research sites. Each site is expected to meet operational targets such as patient enrollment goals, study timelines, protocol compliance, and timely issue resolution.
+One clinical trial can run across several hospitals, clinics, and research sites. Each site has patient enrollment targets, study deadlines, and operational issues to resolve.
 
-Some sites may begin falling behind without the problem being immediately obvious. Slow enrollment, repeated delays, patient dropouts, protocol deviations, or unresolved operational issues can eventually affect the overall clinical trial timeline and increase cost.
+Some sites meet their targets while others fall behind. The challenge is to identify **which site needs attention and why**, before delays affect the wider trial.
 
-### Example
+### Example: Which Site Needs Attention?
 
-Suppose a clinical trial site is expected to enroll **60 patients**, but it has enrolled only **21 patients**. The site is also **18 days behind schedule** and has **3 unresolved operational issues**.
+The following fictional sites illustrate three different situations:
 
-This site may represent a higher operational risk and should receive attention before the problems become more serious.
+| Trial site | Patients enrolled / target | Days behind schedule | Unresolved issues | Prototype risk | What the numbers show |
+|---|---|---:|---:|---|---|
+| Northbridge Research Center | 21 / 60 — **35%** | 18 | 3 | **High** | Enrollment is low, the site is well behind schedule, and several issues remain open. |
+| Harborview Study Center | 45 / 60 — **75%** | 9 | 1 | **Medium** | Enrollment is below the prototype target threshold, with a delay and an open issue. |
+| Lakeside Research Clinic | 54 / 60 — **90%** | 0 | 0 | **Low** | The displayed metrics are within the prototype thresholds, with no schedule delay or open issues. |
+
+The application also checks patient dropouts and protocol deviations. For these examples, neither raises the overall rating above the level shown. The current app assesses **one site at a time**; this table compares the examples to make the problem easier to understand.
+
+These ratings follow the project's [prototype risk rules](docs/risk-rules.md). They describe operational concerns, not patient safety or treatment risk. Low means no monitored metric crossed those thresholds; it does not mean there is no risk.
 
 ## What We Are Trying to Solve
 
-The goal of this project is to provide a simple **Clinical Trial Site Risk Monitor** that helps clinical operations teams quickly identify:
+The goal is to make a site's operational status easy to review without manually interpreting every number.
 
-- which trial sites are performing normally
-- which sites are beginning to fall behind
-- which sites may represent a high risk
-- the main reasons a site has been classified as risky
+| Question | How the application helps |
+|---|---|
+| Is this site falling behind? | Shows enrollment progress, schedule delay, and unresolved issues. |
+| How much attention does it need? | Applies consistent Python rules to classify the site as Low, Medium, or High. |
+| Why was it given that rating? | Lists the measured factors and thresholds that contributed to the result. |
+| What does the result mean in plain language? | Uses Amazon Bedrock Nova Micro to explain the calculated result without changing the rating. |
 
-The application provides an easy way to review trial-site performance and detect potential problems earlier, helping teams focus attention on the sites that need it most.
+**Using the app:** paste a readable site report or fill in the fields, select **Assess site**, then review the rating, reasons, and optional AI explanation. No JSON editing is required.
 
 ## Architecture
 
@@ -73,7 +83,7 @@ The hosted Streamlit -> API Gateway -> Lambda -> ALB -> FastAPI -> Bedrock flow 
 - [x] Merge the Lambda integration changes; the backend is deployed and verified.
 - [ ] Add Snowflake storage for trial-site data and assessment results.
 - [x] Build and verify the Streamlit interface with risk results.
-- [x] Add a navy-and-teal dashboard with readable report input, manual fields, and synthetic examples (prepared locally; hosted UI update pending).
+- [x] Add a dark-blue-and-orange dashboard with readable report input, manual fields, and synthetic examples (prepared locally; hosted UI update pending).
 - [x] Add signed API requests and safe backend errors to the single-site Streamlit UI.
 - [x] Save private Community Cloud Secrets and verify the hosted Streamlit form (High risk and five reasons).
 - [ ] Extend Streamlit for multiple sites.
