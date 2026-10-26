@@ -62,6 +62,8 @@ jobs:
         run: |
           python -m pip install -r services/risk_service/requirements-dev.txt
           python -m unittest discover -s services/risk_service -p 'test_*.py' -v
+      - name: Test demo lifecycle safety
+        run: python -m unittest scripts.test_demo -v
       - name: Check Terraform and Terragrunt formatting
         shell: bash
         run: |
@@ -79,7 +81,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for module in infrastructure/modules/lambda infrastructure/modules/github-actions infrastructure/modules/ecr infrastructure/bootstrap/state-backend; do
+          for module in infrastructure/modules/lambda infrastructure/modules/github-actions infrastructure/modules/ecr infrastructure/modules/eks infrastructure/modules/demo-app infrastructure/bootstrap/state-backend; do
             terraform -chdir="$module" init -backend=false -input=false
             terraform -chdir="$module" validate
             terraform -chdir="$module" test
