@@ -34,6 +34,11 @@ run "scoped_github_access" {
   command = apply
 
   assert {
+    condition     = one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ReadEksNodegroupServiceRole"]).Action == "iam:GetRole" && one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ReadEksNodegroupServiceRole"]).Resource == "arn:aws:iam::123456789012:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
+    error_message = "Worker creation may read only the exact EKS node-group service role, without granting service-role modification."
+  }
+
+  assert {
     condition     = contains(one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ManageDemoRoles"]).Action, "iam:ListInstanceProfilesForRole") && toset(one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ManageDemoRoles"]).Resource) == toset(values(local.demo_role_arns))
     error_message = "Terraform role cleanup must be able to inspect profiles only for the three demo service roles."
   }

@@ -75,6 +75,8 @@ This policy is separate from worker-node runtime permissions and fits outside IA
 
 Terraform's IAM role deletion also requires `iam:ListInstanceProfilesForRole`. The demo role grants that read action only on its three service-role ARNs so Stop can complete role cleanup after deleting EKS.
 
+Worker creation also validates the existing `AWSServiceRoleForAmazonEKSNodegroup` service-linked role. The workflow receives only `iam:GetRole` on that exact role ARN; it cannot modify the service-linked role. A mocked Terraform assertion checks this scope. The EC2 dry-run launch check passed before this separate IAM read requirement was identified.
+
 Eleven Python lifecycle safety tests cover deletion scope, creation rejection during Stop, no infrastructure replacement during Start, application-first cleanup, repeated Stop, orphan-role detection, and denied cleanup reads. Six mocked Terraform runs cover the EKS configuration, application hardening/digest pinning, main-only IAM trust, scoped state, and bounded role creation. Both workflow files pass actionlint. The verification Job's exact HTTP-check code also passed against a local hardened Docker container, with its service URL redirected to the local test port.
 
 AWS IAM simulation confirmed tagged demo creation and deletion of the named cluster are allowed, while untagged creation, deletion of another cluster or a VPC, editing the demo role's own policy, and image pushes are denied. AWS Access Analyzer reported no findings for the corrected policy. These checks do not substitute for a real EKS rollout and cleanup test.

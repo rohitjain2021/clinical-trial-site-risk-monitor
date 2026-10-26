@@ -114,6 +114,11 @@ resource "aws_iam_role_policy" "demo" {
         Resource = local.demo_eks_resources
       },
       {
+        # EKS validates its existing node-group service role during worker creation.
+        Sid      = "ReadEksNodegroupServiceRole", Effect = "Allow", Action = "iam:GetRole"
+        Resource = "arn:aws:iam::${local.account_id}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
+      },
+      {
         Sid      = "ManageDemoRoles", Effect = "Allow"
         Action   = ["iam:GetRole", "iam:DeleteRole", "iam:UpdateAssumeRolePolicy", "iam:TagRole", "iam:UntagRole", "iam:ListRolePolicies", "iam:ListAttachedRolePolicies", "iam:ListInstanceProfilesForRole", "iam:GetRolePolicy", "iam:PutRolePolicy", "iam:DeleteRolePolicy"]
         Resource = values(local.demo_role_arns)
