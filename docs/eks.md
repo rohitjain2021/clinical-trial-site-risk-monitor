@@ -1,6 +1,6 @@
 # EKS Development Plan
 
-**Status: a control plane exists from the interrupted deployment; worker provisioning and full FastAPI rollout remain unverified. The replacement manual deployment workflow is prepared and requires merge to run on `main`.**
+**Status: EKS and its Kubernetes application were destroyed through reviewed Terraform plans after testing. AWS checks confirm no control plane, worker instances, or root disks remain; both unit states have zero managed resources. Worker provisioning succeeded before cleanup, but full FastAPI verification remains pending.**
 
 Terraform defines the cluster in `infrastructure/modules/eks`; Terragrunt supplies development configuration in `infrastructure/live/dev/eks`. The cluster is named `clinical-trial-site-risk-monitor-dev-eks`. Supporting roles, worker nodes, root disks, launch template, and log group use the same project prefix.
 

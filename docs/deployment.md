@@ -2,6 +2,12 @@
 
 Use **Actions → Deploy EKS and risk service → Run workflow** on `main` after this change is merged. This replaces the disposable Start/Stop workflow.
 
+## Session Handoff
+
+The development EKS environment has been removed through reviewed Terraform plans. The application state and EKS state contain zero managed resources. AWS verification confirmed no control plane, worker instances, root volumes, or project EKS service roles remain. ECR images, Lambda/API, the existing network, GitHub IAM bootstrap, and the state backend were preserved.
+
+Worker creation reached ACTIVE after the service-role lookup correction. FastAPI rollout then encountered a missing networking-agent image permission; that exact repository was added to both the worker policy and its boundary through Terraform. The full HTTP verification has not passed yet. Merge [PR #15](https://github.com/rohitjain2021/clinical-trial-site-risk-monitor/pull/15) before recreating the environment so deployment uses the corrected image policy. Then run a fresh plan and explicitly select deployment when ready. Resources stay running after deployment; there is no automatic teardown.
+
 ## Plan
 
 Leave **deploy** unchecked and choose a full commit SHA already published to ECR. The workflow resolves its immutable digest, writes private settings on the runner, and saves and checks an EKS Terraform plan. The log lists resource addresses and actions without publishing raw plans or state.
