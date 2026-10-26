@@ -49,6 +49,7 @@ resource "aws_iam_role_policy" "node_images" {
           # AWS's documented us-east-1 EKS add-on registry, not our account ID.
           "arn:aws:ecr:us-east-1:602401143452:repository/amazon-k8s-cni",
           "arn:aws:ecr:us-east-1:602401143452:repository/amazon-k8s-cni-init",
+          "arn:aws:ecr:us-east-1:602401143452:repository/amazon/aws-network-policy-agent",
           "arn:aws:ecr:us-east-1:602401143452:repository/eks/kube-proxy",
           "arn:aws:ecr:us-east-1:602401143452:repository/eks/coredns"
         ]

@@ -2,6 +2,12 @@
 
 Use **Actions → Deploy EKS and risk service → Run workflow** on `main` after this change is merged. This replaces the disposable Start/Stop workflow.
 
+## Session Handoff
+
+The development EKS environment has been removed through reviewed Terraform plans. The application state and EKS state contain zero managed resources. AWS verification confirmed no control plane, worker instances, root volumes, or project EKS service roles remain. ECR images, Lambda/API, the existing network, GitHub IAM bootstrap, and the state backend were preserved.
+
+Worker creation reached ACTIVE after the service-role lookup correction. FastAPI rollout then encountered a missing networking-agent image permission; that exact repository was added to both the worker policy and its boundary through Terraform. The full HTTP verification has not passed yet. Merge [PR #15](https://github.com/rohitjain2021/clinical-trial-site-risk-monitor/pull/15) before recreating the environment so deployment uses the corrected image policy. Then run a fresh plan and explicitly select deployment when ready. Resources stay running after deployment; there is no automatic teardown.
+
 ## Plan
 
 Leave **deploy** unchecked and choose a full commit SHA already published to ECR. The workflow resolves its immutable digest, writes private settings on the runner, and saves and checks an EKS Terraform plan. The log lists resource addresses and actions without publishing raw plans or state.
@@ -20,9 +26,13 @@ Resources stay provisioned after success or failure. There is no Start/Stop choi
 
 The planned request path remains Streamlit → API Gateway → Lambda → ALB → EKS/FastAPI, with ECR supplying the image and Terraform/Terragrunt managing infrastructure. ALB, Lambda-to-FastAPI integration, hosted Streamlit integration, Snowflake, and Bedrock remain separate work. This workflow does not claim that the complete application is deployed.
 
-The first deployment attempts exposed missing custom-template launch permissions and a missing `iam:GetRole` permission for `AWSServiceRoleForAmazonEKSNodegroup`. Those permissions are defined in the GitHub-access Terraform module. Launches are restricted to the selected subnets, project-tagged template, and `t3.medium`; the service-role read targets its exact ARN.
+The first deployment attempts exposed missing custom-template launch permissions and a missing `iam:GetRole` permission for `AWSServiceRoleForAmazonEKSNodegroup`. Those permissions are defined in the GitHub-access Terraform module. Launches are restricted to the selected subnets, project-tagged template, and `t3.medium`; the service-role read targets its two exact ARN forms. Before the role exists, the lookup uses the role name without a path; after creation, it uses the service-linked path. Both reads are needed for first-time provisioning, and neither grants role modification. EKS creates the service-linked role as part of managed worker provisioning; see [AWS service-linked role behavior](https://docs.aws.amazon.com/eks/latest/userguide/using-service-linked-roles-eks-nodegroups.html).
 
 Existing IAM resource names, Terraform addresses, the `dev/eks` and `dev/demo-app` state keys, and the Kubernetes application module are retained to avoid replacing infrastructure merely to rename it. The role's legacy `github-demo` name does not provide a Start/Stop lifecycle. The Lambda deployment role keeps its separate scope. Concurrency also retains its existing group so deployment cannot overlap an old lifecycle run.
+
+## Required Networking Image
+
+The VPC CNI also runs `aws-eks-nodeagent`, which pulls `amazon/aws-network-policy-agent` from the AWS-owned regional ECR registry. Both the worker role and its operator-managed permissions boundary must allow read-only pulls from that exact repository. Missing it caused `ImagePullBackOff` for the agent and pod sandbox network setup failures even though the worker group was active. The policies retain explicit repositories instead of granting general ECR image access. See [AWS network policy agent](https://github.com/aws/aws-network-policy-agent).
 
 ## Failed or Interrupted Deployment
 

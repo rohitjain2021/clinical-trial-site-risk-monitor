@@ -1,6 +1,6 @@
 # EKS Development Plan
 
-**Status: a control plane exists from the interrupted deployment; worker provisioning and full FastAPI rollout remain unverified. The replacement manual deployment workflow is prepared and requires merge to run on `main`.**
+**Status: EKS and its Kubernetes application were destroyed through reviewed Terraform plans after testing. AWS checks confirm no control plane, worker instances, or root disks remain; both unit states have zero managed resources. Worker provisioning succeeded before cleanup, but full FastAPI verification remains pending.**
 
 Terraform defines the cluster in `infrastructure/modules/eks`; Terragrunt supplies development configuration in `infrastructure/live/dev/eks`. The cluster is named `clinical-trial-site-risk-monitor-dev-eks`. Supporting roles, worker nodes, root disks, launch template, and log group use the same project prefix.
 
@@ -26,7 +26,7 @@ This development design uses public worker subnets and does not add a NAT gatewa
 
 The Kubernetes cluster and node IAM roles receive the AWS-managed EKS policies needed for their respective services. All three service roles require operator-managed permissions boundaries. The deployment workflow cannot edit those boundaries or its own permissions. The VPC CNI uses a separate IAM role restricted to the `kube-system/aws-node` service account, so worker-role credentials do not carry the CNI networking policy. These service-managed policies include discovery and networking actions that require broader AWS resource scopes; they are not administrator policies. See [node IAM roles](https://docs.aws.amazon.com/eks/latest/userguide/create-node-role.html) and [CNI service-account permissions](https://docs.aws.amazon.com/eks/latest/userguide/cni-iam-role.html).
 
-Image-pull permissions are read-only and restricted to the project's ECR repository plus the four named core system-image repositories in [AWS's documented regional add-on registry](https://docs.aws.amazon.com/eks/latest/userguide/add-ons-images.html). The AWS-owned registry account ID in the module is public service metadata, not this project's account ID. Registry authentication uses a regional wildcard because ECR does not support repository scoping for that action. No image-push permissions are granted to workers.
+Image-pull permissions are read-only and restricted to the project's ECR repository plus the five named core system-image repositories in [AWS's documented regional add-on registry](https://docs.aws.amazon.com/eks/latest/userguide/add-ons-images.html). The AWS-owned registry account ID in the module is public service metadata, not this project's account ID. Registry authentication uses a regional wildcard because ECR does not support repository scoping for that action. No image-push permissions are granted to workers.
 
 ## Private Operator Configuration
 

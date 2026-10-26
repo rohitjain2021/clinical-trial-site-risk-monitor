@@ -43,6 +43,8 @@ GitHub Actions runs checks on pull requests and produces a development deploymen
 
 The manual [EKS deployment workflow](docs/deployment.md) plans by default and provisions EKS/FastAPI when deployment is explicitly selected. Resources remain running; there is no Start/Stop lifecycle or automatic destruction. Live deployment verification is pending.
 
+**Development EKS status:** removed after testing to avoid ongoing compute costs. Worker provisioning succeeded; FastAPI verification still needs a fresh deployment after the IAM fixes are merged.
+
 ## API
 
 The development HTTP API provides authenticated `GET /health` and `POST /site-assessments` routes. Site submissions support validation only; storage and risk analysis will be added later. See the [API guide](docs/api.md) for the contract, authentication, and example data.
@@ -62,7 +64,8 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [x] Prepare and validate the [EKS Terraform plan and running costs](docs/eks.md), reusing the existing default VPC and subnets.
 - [x] Implement a basic manual EKS/FastAPI plan-and-deploy workflow.
 - [x] Configure encrypted operator settings in GitHub Actions.
-- [ ] Merge and verify EKS worker provisioning and FastAPI deployment.
+- [x] Verify EKS worker provisioning through Terraform; the test environment was subsequently removed.
+- [ ] Merge the IAM fixes and verify the FastAPI deployment.
 - [ ] Review and approve the EKS plan, then provision through Terraform and Terragrunt.
 - [ ] Add application load balancing through infrastructure as code.
 - [ ] Deploy the risk service and connect Lambda to it.
