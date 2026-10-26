@@ -114,9 +114,13 @@ resource "aws_iam_role_policy" "demo" {
         Resource = local.demo_eks_resources
       },
       {
-        # EKS validates its existing node-group service role during worker creation.
-        Sid      = "ReadEksNodegroupServiceRole", Effect = "Allow", Action = "iam:GetRole"
-        Resource = "arn:aws:iam::${local.account_id}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
+        # Before the role exists, IAM authorizes GetRole against the pathless ARN.
+        # Keep both exact forms so EKS can check absence and then create its SLR.
+        Sid = "ReadEksNodegroupServiceRole", Effect = "Allow", Action = "iam:GetRole"
+        Resource = [
+          "arn:aws:iam::${local.account_id}:role/AWSServiceRoleForAmazonEKSNodegroup",
+          "arn:aws:iam::${local.account_id}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
+        ]
       },
       {
         Sid      = "ManageDemoRoles", Effect = "Allow"

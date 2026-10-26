@@ -34,8 +34,8 @@ run "scoped_github_access" {
   command = apply
 
   assert {
-    condition     = one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ReadEksNodegroupServiceRole"]).Action == "iam:GetRole" && one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ReadEksNodegroupServiceRole"]).Resource == "arn:aws:iam::123456789012:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
-    error_message = "Worker creation may read only the exact EKS node-group service role, without granting service-role modification."
+    condition     = one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ReadEksNodegroupServiceRole"]).Action == "iam:GetRole" && toset(one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ReadEksNodegroupServiceRole"]).Resource) == toset(["arn:aws:iam::123456789012:role/AWSServiceRoleForAmazonEKSNodegroup", "arn:aws:iam::123456789012:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"])
+    error_message = "GetRole must cover only the exact first-creation lookup and existing service-role ARNs, without wildcards or modification permissions."
   }
 
   assert {
