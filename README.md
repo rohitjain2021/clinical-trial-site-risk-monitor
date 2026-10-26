@@ -31,7 +31,7 @@ The application provides an easy way to review trial-site performance and detect
 
 Terragrunt manages environment configuration and orchestrates Terraform, which provisions the AWS infrastructure shown above.
 
-The diagram shows the target architecture. EKS/FastAPI now run privately using the published ECR image; ALB and the remaining application integrations are still planned.
+The diagram shows the target architecture. EKS/FastAPI and the internal ALB now run privately using the published ECR image. Lambda-to-ALB and the remaining application integrations are still planned.
 
 ## Development Setup
 
@@ -41,9 +41,9 @@ See the [development setup guide](docs/setup.md) for installation and verificati
 
 GitHub Actions runs checks on pull requests and produces a development deployment plan on `main`. An explicit manual workflow run deploys the Lambda through Terragrunt and Terraform, using OIDC authentication and S3 state locking. See the [CI/CD guide](docs/cicd.md) for workflow behavior and AWS permissions.
 
-The manual [EKS deployment workflow](docs/deployment.md) plans by default and provisions EKS/FastAPI when deployment is explicitly selected. Resources remain running; there is no Start/Stop lifecycle or automatic destruction. The corrected in-cluster verification job has passed; the GitHub workflow needs a rerun after the verification fix is merged.
+The manual [EKS deployment workflow](docs/deployment.md) plans by default and provisions EKS/FastAPI when deployment is explicitly selected. Resources remain running; there is no Start/Stop lifecycle or automatic destruction. The main-branch EKS/FastAPI workflow has passed. The separate operator-run ALB unit has also passed private HTTP verification; see the [ALB guide](docs/alb.md).
 
-**Development EKS status:** provisioned, with FastAPI running privately. Health, risk assessment, cache-control, and invalid-input checks passed after a Terraform-only verification-job fix. Resources remain running until teardown is explicitly requested.
+**Development EKS status:** provisioned, with FastAPI running privately. Health, risk assessment, cache-control, and invalid-input checks passed through both the Kubernetes Service and private ALB. Resources remain running until teardown is explicitly requested.
 
 ## API
 
@@ -66,16 +66,16 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [x] Configure encrypted operator settings in GitHub Actions.
 - [x] Verify EKS worker provisioning through Terraform.
 - [x] Merge the IAM fixes and verify FastAPI in the live cluster.
-- [ ] Merge the verification-job routing fix and rerun the GitHub deployment workflow.
+- [x] Merge the verification-job routing fix and pass the GitHub deployment workflow.
 - [x] Review the EKS plan and provision through Terraform and Terragrunt.
-- [ ] Add application load balancing through infrastructure as code.
+- [x] Provision and verify the private Application Load Balancer through Terraform/Terragrunt.
 - [ ] Connect Lambda to the deployed risk service through the ALB.
 - [ ] Add Snowflake storage for trial-site data and assessment results.
 - [x] Build and verify a simple local Streamlit interface with copy-paste JSON and risk results.
 - [ ] Extend Streamlit for multiple sites and the authenticated deployed API.
 - [ ] Provision Streamlit hosting and its scoped API access through Terraform and Terragrunt.
 - [ ] Add Amazon Bedrock explanations based on calculated risk results.
-- [ ] Extend CI/CD to deploy and verify the remaining application components.
+- [ ] Extend CI/CD to deploy the ALB unit and remaining application components.
 - [ ] Add monitoring, alerts, and end-to-end tests for the complete workflow.
 - [x] Update the architecture diagram with GitHub Actions, Docker, ECR, service connections, and implemented versus planned components.
 
@@ -88,6 +88,10 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 ### EKS Deployment
 
 [Read the deployment guide](docs/deployment.md) for the manual plan/apply workflow, current scope, and failure recovery.
+
+### Private Application Load Balancer
+
+[Read the ALB guide](docs/alb.md) for worker routing, security groups, operator deployment, verification, and teardown order.
 
 ### EKS Planning
 

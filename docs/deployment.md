@@ -4,11 +4,11 @@ Use **Actions → Deploy EKS and risk service → Run workflow** on `main`. Depl
 
 ## Current Validation Status
 
-EKS, its worker group, and private FastAPI are provisioned. The application rollout succeeded, but the initial HTTP verification job failed with connection refused. Its pod shared the Service's application labels, so the Service could select the verification client as an HTTP backend. The corrected job uses distinct pod labels, and its health check retries transient startup failures for a bounded period.
+EKS, its worker group, and private FastAPI are provisioned. The main-branch deployment workflow passed its in-cluster HTTP verification after the verification pod was excluded from application Service routing.
 
-An inspected Terraform plan replaced only the failed verification job. Its real in-cluster health, High-risk assessment, cache-control, and invalid-input checks all passed. EKS and FastAPI were preserved. Merge this verification fix and rerun the main-branch deployment workflow to obtain a successful complete workflow result; the earlier failed run remains failed.
+The internal ALB was subsequently provisioned through a reviewed operator Terraform plan. Its target is healthy and the real verification job passed health, High-risk assessment, cache-control, and invalid-input checks through the ALB endpoint. Both jobs use the same verifier, with distinct pod labels and bounded startup retries. See the [ALB guide](alb.md).
 
-The earlier service-role and networking-image permissions are already merged. Resources remain running. Teardown happens only on explicit request; no idle timer or automatic cleanup is configured.
+The earlier IAM and routing fixes are merged. Resources remain running. Teardown happens only on explicit request; no idle timer or automatic cleanup is configured. Remove the ALB unit before the application and EKS when teardown is requested.
 
 ## Plan
 
@@ -26,7 +26,7 @@ Resources stay provisioned after success or failure. There is no Start/Stop choi
 
 ## Architecture and Current Scope
 
-The planned request path remains Streamlit → API Gateway → Lambda → ALB → EKS/FastAPI, with ECR supplying the image and Terraform/Terragrunt managing infrastructure. ALB, Lambda-to-FastAPI integration, hosted Streamlit integration, Snowflake, and Bedrock remain separate work. This workflow does not claim that the complete application is deployed.
+The planned request path remains Streamlit → API Gateway → Lambda → ALB → EKS/FastAPI, with ECR supplying the image and Terraform/Terragrunt managing infrastructure. The ALB-to-FastAPI path is deployed and verified. Lambda-to-ALB integration, hosted Streamlit integration, Snowflake, and Bedrock remain separate work. This workflow does not claim that the complete application is deployed.
 
 The first deployment attempts exposed missing custom-template launch permissions and a missing `iam:GetRole` permission for `AWSServiceRoleForAmazonEKSNodegroup`. Those permissions are defined in the GitHub-access Terraform module. Launches are restricted to the selected subnets, project-tagged template, and `t3.medium`; the service-role read targets its two exact ARN forms. Before the role exists, the lookup uses the role name without a path; after creation, it uses the service-linked path. Both reads are needed for first-time provisioning, and neither grants role modification. EKS creates the service-linked role as part of managed worker provisioning; see [AWS service-linked role behavior](https://docs.aws.amazon.com/eks/latest/userguide/using-service-linked-roles-eks-nodegroups.html).
 
@@ -44,4 +44,4 @@ Cancellation can interrupt state persistence. Before retrying, verify the previo
 
 ## Validation
 
-Local tests cover main-only execution, plan-only behavior, the project resource allowlist, rejection of infrastructure deletion/replacement, repeatable HTTP verification, and leaving resources intact on failure. Mocked Terraform tests cover IAM scope, EKS hardening, and the private application runtime. A Terraform regression assertion fails with the old labels and passes with distinct verification labels. The actual embedded Python verifier was checked with a transient connection failure and persistent unavailability. The corrected real in-cluster job passed; the full GitHub workflow needs rerunning after merge.
+Local tests cover main-only execution, plan-only behavior, the project resource allowlist, rejection of infrastructure deletion/replacement, repeatable HTTP verification, and leaving resources intact on failure. Mocked Terraform tests cover IAM scope, EKS hardening, and the private application runtime. A Terraform regression assertion fails with the old labels and passes with distinct verification labels. The actual embedded Python verifier was checked with a transient connection failure and persistent unavailability. The corrected real in-cluster job and full EKS/FastAPI GitHub workflow passed. ALB provisioning remains a separate operator unit, with module validation and shared-verifier tests included in CI.

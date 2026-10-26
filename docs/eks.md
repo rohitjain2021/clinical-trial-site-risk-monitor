@@ -1,6 +1,6 @@
 # EKS Development Plan
 
-**Status: EKS and its worker group are active, with FastAPI deployed privately. The corrected HTTP verification job passed health, assessment, cache-control, and invalid-input checks after a reviewed Terraform job replacement. The deployment workflow must be rerun after merging that verification fix. Resources remain provisioned until explicit teardown.**
+**Status: EKS and its worker group are active, with FastAPI deployed privately. The main deployment workflow passed, and the separately provisioned internal ALB passed health, assessment, cache-control, and invalid-input checks. Resources remain provisioned until explicit teardown. See the [ALB guide](alb.md).**
 
 Terraform defines the cluster in `infrastructure/modules/eks`; Terragrunt supplies development configuration in `infrastructure/live/dev/eks`. The cluster is named `clinical-trial-site-risk-monitor-dev-eks`. Supporting roles, worker nodes, root disks, launch template, and log group use the same project prefix.
 
@@ -10,7 +10,7 @@ The module reads the existing default VPC and its default subnets in `us-east-1a
 
 Read-only AWS checks confirmed DNS support, DNS hostnames, internet-gateway routing, automatic public IPv4 assignment, and sufficient free addresses. Both selected zones support EKS. The module rejects the unsupported `use1-az3` zone ID, which maps to `us-east-1e` in this account, and requires two distinct zones with at least 16 free subnet addresses each. Recheck routing before a future apply if the shared network changes. See [EKS network requirements](https://docs.aws.amazon.com/eks/latest/userguide/network-reqs.html).
 
-This development design uses public worker subnets and does not add a NAT gateway. A public worker address does not grant inbound access: EKS attaches its cluster security group, and no SSH key, remote-access rule, public application port, or load balancer is configured in this step.
+This development design uses public worker subnets and does not add a NAT gateway. A public worker address does not grant inbound access: EKS attaches its cluster security group, and no SSH key, remote-access rule, or public application access is configured. The separate ALB unit adds private forwarding to the application NodePort.
 
 ## Cluster and Worker
 
@@ -62,15 +62,15 @@ Illustrative `us-east-1` costs checked October 25, 2026, using the current Spot 
 | One 20 GiB gp3 root disk | $0.08/GiB-month | $1.60 |
 | **Baseline** | **about $0.12/hour** | **$88.62–$90.00/month** |
 
-At these observed rates, two hours of provisioned runtime is approximately $0.24–$0.25 before extras. Include provisioning and deletion time in your session budget. Spot prices and availability change, and replacements may temporarily add capacity. CloudWatch ingestion/storage, ECR storage/scanning, data transfer, and any later load balancer are additional. There is no new VPC or NAT gateway charge in this plan. Cluster charges continue even without application traffic.
+At these observed rates, two hours of provisioned runtime is approximately $0.24–$0.25 before extras. Include provisioning and deletion time in your session budget. Spot prices and availability change, and replacements may temporarily add capacity. CloudWatch ingestion/storage, ECR storage/scanning, data transfer, and the separate ALB are additional. There is no new VPC or NAT gateway charge in this plan. Cluster charges continue even without application traffic.
 
 Worker rates were read through the EC2 Spot price-history API for Linux/UNIX in `us-east-1a` and `us-east-1b`. References: [Spot managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html), [EKS pricing](https://aws.amazon.com/eks/pricing/), [public IPv4 pricing](https://aws.amazon.com/vpc/pricing/), [gp3 pricing](https://aws.amazon.com/ebs/general-purpose/). These are estimates, not a billing guarantee or an automatic spending limit.
 
 ## Future Cleanup
 
-The manual workflow plans by default and applies when deployment is selected. Resources remain running after success or failure. There is no Start/Stop workflow or automatic destruction. When removal is explicitly requested, destroy the Kubernetes application unit before EKS through reviewed Terragrunt plans.
+The manual workflow plans by default and applies when deployment is selected. Resources remain running after success or failure. There is no Start/Stop workflow or automatic destruction. When removal is explicitly requested, destroy the ALB unit first, then the Kubernetes application unit and EKS through reviewed Terragrunt plans.
 
-Remove application ingresses/services and their controller-created load balancers while the cluster is still available. Then review a destroy plan for the EKS unit only. Terraform tracks the project cluster, node group, IAM roles, add-ons, launch template, and log group; EKS manages the corresponding worker instances, instance profile, and cluster security group. Root disks are set to delete on termination. Future persistent volumes or other retained data need a separate decision.
+Remove `infrastructure/live/dev/alb` while Kubernetes is still available so its verification job, worker attachment, load balancer, and security-group references are deleted first. Then remove the application unit. Then review a destroy plan for the EKS unit only. Terraform tracks the project cluster, node group, IAM roles, add-ons, launch template, and log group; EKS manages the corresponding worker instances, instance profile, and cluster security group. Root disks are set to delete on termination. Future persistent volumes or other retained data need a separate decision.
 
 The default VPC, default subnets, routes, ECR repository, existing Lambda/API, and other stacks are outside this EKS unit and must remain. Keep the Terraform backend until all dependent project stacks have been cleaned up. No cleanup or deletion is performed during this planning step.
 

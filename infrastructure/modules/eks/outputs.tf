@@ -20,3 +20,21 @@ output "cluster_certificate" {
   value       = aws_eks_cluster.this.certificate_authority[0].data
   sensitive   = true
 }
+
+output "vpc_id" {
+  description = "Existing VPC used by EKS and the private ALB."
+  value       = data.aws_vpc.existing.id
+  sensitive   = true
+}
+
+output "subnet_ids" {
+  description = "Existing subnets for the private ALB; no shared network ownership."
+  value       = local.subnet_ids
+  sensitive   = true
+}
+
+output "worker_autoscaling_group_name" {
+  description = "EKS-managed worker group for automatic ALB target registration."
+  value       = one(aws_eks_node_group.risk.resources[0].autoscaling_groups).name
+  sensitive   = true
+}

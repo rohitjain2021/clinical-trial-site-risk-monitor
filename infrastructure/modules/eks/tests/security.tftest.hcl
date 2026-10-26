@@ -1,4 +1,7 @@
 mock_provider "aws" {
+  mock_resource "aws_eks_node_group" {
+    defaults = { resources = [{ autoscaling_groups = [{ name = "eks-clinical-trial-site-risk-monitor-dev-eks-risk-nodes-example" }] }] }
+  }
   mock_resource "aws_launch_template" {
     defaults = { id = "lt-0123456789abcdef0", latest_version = 1 }
   }
