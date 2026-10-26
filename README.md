@@ -67,7 +67,8 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [ ] Add application load balancing through infrastructure as code.
 - [ ] Deploy the risk service and connect Lambda to it.
 - [ ] Add Snowflake storage for trial-site data and assessment results.
-- [ ] Build the Streamlit interface for data uploads, site summaries, and risk results.
+- [x] Build and verify a simple local Streamlit interface with copy-paste JSON and risk results.
+- [ ] Extend Streamlit for multiple sites and the authenticated deployed API.
 - [ ] Provision Streamlit hosting and its scoped API access through Terraform and Terragrunt.
 - [ ] Add Amazon Bedrock explanations based on calculated risk results.
 - [ ] Extend CI/CD to deploy and verify the remaining application components.
@@ -75,6 +76,10 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [x] Update the architecture diagram with GitHub Actions, Docker, ECR, service connections, and implemented versus planned components.
 
 ## Documentation
+
+### Local Streamlit UI
+
+[Read the Streamlit guide](docs/streamlit.md) for installation, copy-paste sample data, and running the UI locally.
 
 ### Start/Stop Demo
 
