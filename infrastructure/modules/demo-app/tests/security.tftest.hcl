@@ -12,6 +12,10 @@ variables {
 run "private_hardened_demo" {
   command = plan
   assert {
+    condition     = !alltrue([for key, value in kubernetes_service_v1.risk.spec[0].selector : lookup(kubernetes_job_v1.verify.spec[0].template[0].metadata[0].labels, key, "") == value]) && alltrue([for key, value in kubernetes_service_v1.risk.spec[0].selector : lookup(kubernetes_deployment_v1.risk.spec[0].template[0].metadata[0].labels, key, "") == value])
+    error_message = "The Service must select application pods and exclude the verification client pod."
+  }
+  assert {
     condition     = kubernetes_service_v1.risk.spec[0].type == "ClusterIP" && kubernetes_deployment_v1.risk.spec[0].replicas == "1" && kubernetes_deployment_v1.risk.wait_for_rollout && kubernetes_job_v1.verify.wait_for_completion
     error_message = "Keep the demo private and wait for rollout plus real HTTP verification."
   }

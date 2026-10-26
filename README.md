@@ -31,7 +31,7 @@ The application provides an easy way to review trial-site performance and detect
 
 Terragrunt manages environment configuration and orchestrates Terraform, which provisions the AWS infrastructure shown above.
 
-Components marked **Planned** have not been deployed; the FastAPI image is tested and published in ECR.
+The diagram shows the target architecture. EKS/FastAPI now run privately using the published ECR image; ALB and the remaining application integrations are still planned.
 
 ## Development Setup
 
@@ -41,9 +41,9 @@ See the [development setup guide](docs/setup.md) for installation and verificati
 
 GitHub Actions runs checks on pull requests and produces a development deployment plan on `main`. An explicit manual workflow run deploys the Lambda through Terragrunt and Terraform, using OIDC authentication and S3 state locking. See the [CI/CD guide](docs/cicd.md) for workflow behavior and AWS permissions.
 
-The manual [EKS deployment workflow](docs/deployment.md) plans by default and provisions EKS/FastAPI when deployment is explicitly selected. Resources remain running; there is no Start/Stop lifecycle or automatic destruction. Live deployment verification is pending.
+The manual [EKS deployment workflow](docs/deployment.md) plans by default and provisions EKS/FastAPI when deployment is explicitly selected. Resources remain running; there is no Start/Stop lifecycle or automatic destruction. The corrected in-cluster verification job has passed; the GitHub workflow needs a rerun after the verification fix is merged.
 
-**Development EKS status:** removed after testing to avoid ongoing compute costs. Worker provisioning succeeded; FastAPI verification still needs a fresh deployment after the IAM fixes are merged.
+**Development EKS status:** provisioned, with FastAPI running privately. Health, risk assessment, cache-control, and invalid-input checks passed after a Terraform-only verification-job fix. Resources remain running until teardown is explicitly requested.
 
 ## API
 
@@ -55,7 +55,7 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 
 - [x] Document [prototype risk rules](docs/risk-rules.md), classification reasons, and sample cases. Thresholds require review before operational use.
 - [x] Implement and test the standalone prototype risk calculation locally; it is not connected to the deployed API yet.
-- [x] Build and test the [FastAPI risk service locally](docs/risk-service.md) using representative site data. It is not deployed or connected to Lambda yet.
+- [x] Build and test the [FastAPI risk service locally](docs/risk-service.md) using representative site data. It is deployed privately on EKS; Lambda integration remains pending.
 - [x] Build and test the [FastAPI container locally](docs/container.md).
 - [x] Add container build and HTTP checks to GitHub Actions; each run reports its result.
 - [x] Provision the private [ECR risk-service repository](docs/ecr.md) through Terraform and Terragrunt.
@@ -64,11 +64,12 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [x] Prepare and validate the [EKS Terraform plan and running costs](docs/eks.md), reusing the existing default VPC and subnets.
 - [x] Implement a basic manual EKS/FastAPI plan-and-deploy workflow.
 - [x] Configure encrypted operator settings in GitHub Actions.
-- [x] Verify EKS worker provisioning through Terraform; the test environment was subsequently removed.
-- [ ] Merge the IAM fixes and verify the FastAPI deployment.
-- [ ] Review and approve the EKS plan, then provision through Terraform and Terragrunt.
+- [x] Verify EKS worker provisioning through Terraform.
+- [x] Merge the IAM fixes and verify FastAPI in the live cluster.
+- [ ] Merge the verification-job routing fix and rerun the GitHub deployment workflow.
+- [x] Review the EKS plan and provision through Terraform and Terragrunt.
 - [ ] Add application load balancing through infrastructure as code.
-- [ ] Deploy the risk service and connect Lambda to it.
+- [ ] Connect Lambda to the deployed risk service through the ALB.
 - [ ] Add Snowflake storage for trial-site data and assessment results.
 - [x] Build and verify a simple local Streamlit interface with copy-paste JSON and risk results.
 - [ ] Extend Streamlit for multiple sites and the authenticated deployed API.
