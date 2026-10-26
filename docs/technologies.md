@@ -330,12 +330,12 @@ Streamlit is a Python framework for interactive data applications.
 
 ## Why and how we plan to use it
 
-`services/streamlit_ui/app.py` provides a simple JSON text box prefilled with synthetic site data, an assessment button, and a readable risk level and reasons. It calls authenticated API Gateway when private cloud settings are present, or local FastAPI in local demo mode. Classification stays in FastAPI. Streamlit `1.66.1` and Boto3 `1.43.118` are pinned in the UI requirements. Boto3 supplies credentials and Botocore signs the exact POST body on the server; keys are never sent to the browser. The dedicated assessment-only identity is provisioned through Terraform. See the [Streamlit integration guide](streamlit.md).
+`services/streamlit_ui/app.py` provides a navy-and-teal clinical dashboard with readable report input or manual fields, three synthetic examples, metric cards, risk reasons, and a separate AI explanation. The UI converts labelled report lines to the existing API schema internally. It calls authenticated API Gateway when private cloud settings are present, or local FastAPI in local demo mode. Classification stays in FastAPI. Streamlit `1.66.1` and Boto3 `1.43.118` are pinned in the UI requirements. Boto3 supplies credentials and Botocore signs the exact POST body on the server; keys are never sent to the browser. The dedicated assessment-only identity is provisioned through Terraform. See the [Streamlit integration guide](streamlit.md).
 
 ## Small example
 
 ```text
-User pastes JSON -> Streamlit signs API Gateway request -> Lambda -> private ALB -> FastAPI -> risk result
+User pastes a site report or fills in fields -> Streamlit signs API Gateway request -> Lambda -> private ALB -> FastAPI -> risk result
 ```
 
 The cloud client and real Streamlit form have passed live AWS verification; hosted Secrets setup remains necessary. The current API accepts one JSON record, not CSV/Excel files or batches. Files in the separate Equipment_SME project are not this project's Streamlit implementation.
@@ -498,7 +498,7 @@ The state bucket is unrelated to this application data store. A successful POST 
 
 # Amazon Bedrock
 
-**Status: Nova Micro implemented and tested locally against Bedrock; updated EKS image rollout pending.**
+**Status: Nova Micro deployed through EKS and verified through the live API and hosted Streamlit UI.**
 
 ## What it is and what it does
 
@@ -515,7 +515,7 @@ Calculated factors: enrollment shortfall, schedule delay, unresolved issues
 Optional AI explanation: summarize those calculated factors without changing the classification
 ```
 
-The model has been exercised with synthetic High/Medium/Low results through the local FastAPI route. The new container and Lambda forwarding changes must be deployed before hosted users receive explanations. AI text remains separate from the deterministic score and can be unavailable.
+The model has been exercised with synthetic High/Medium/Low results through the local FastAPI route. The new container and Lambda forwarding changes are deployed; hosted users now receive explanations. AI text remains separate from the deterministic score and can be unavailable.
 
 [Official Bedrock overview](https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html).
 

@@ -8,10 +8,11 @@ from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 
 from streamlit.testing.v1 import AppTest
-from services.streamlit_ui.app import assess_site
+from services.streamlit_ui.app import assess_site, parse_report, sample_sites
 
 ROOT = Path(__file__).resolve().parents[2]
 SAMPLE = (ROOT / "docs/examples/site-assessment.json").read_text()
+REPORT = (ROOT / "docs/examples/site-report.txt").read_text()
 RESULT = {"site_id": "SITE-001", "risk_level": "High", "rules_version": "prototype-v1", "reasons": ["Synthetic reason"]}
 CONFIG = {
     "risk_api": {"base_url": "https://exampleapi.execute-api.us-east-1.amazonaws.com/dev"},
@@ -65,8 +66,8 @@ class StreamlitTests(unittest.TestCase):
                 assess_site(SAMPLE, CONFIG)
 
     @patch("urllib.request.urlopen")
-    def test_form_displays_risk_and_recovers_from_bad_json(self, http):
-        """Exercise the real form in cloud mode, including correction after a failed submission."""
+    def test_form_displays_risk_and_recovers_from_bad_report(self, http):
+        """Exercise report conversion, submitted metrics, and correction after a bad report."""
         http.return_value.__enter__.return_value.read.return_value = json.dumps(RESULT).encode()
         app = AppTest.from_file(str(ROOT / "services/streamlit_ui/app.py"))
         app.secrets.update(CONFIG)
@@ -77,11 +78,49 @@ class StreamlitTests(unittest.TestCase):
         app.text_area[0].set_value("bad json")
         app.button[0].click().run()
         self.assertTrue(app.error)
-        self.assertFalse(app.metric)
-        app.text_area[0].set_value(SAMPLE)
+        self.assertNotIn("Risk level", [metric.label for metric in app.metric])
+        app.text_area[0].set_value(REPORT)
         app.button[0].click().run()
         self.assertEqual(app.metric[0].value, "High")
         self.assertFalse(app.exception)
+        self.assertEqual(json.loads(http.call_args.args[0].data), parse_report(REPORT))
+
+    def test_report_parser_rejects_ambiguous_fields(self):
+        """Reject missing, duplicate, unknown, negative, and fractional data without guessing."""
+        record = parse_report(REPORT)
+        self.assertEqual(record["actual_enrollment"], 21)
+        self.assertEqual(record["site_name"], "Northbridge Research Center")
+        self.assertEqual(parse_report(REPORT.replace("Site ID:", "SITE ID:")), record)
+        for report in ("", "Patients enrolled: 21", REPORT + "\nPatients enrolled: 40", REPORT + "\nUnknown: 5",
+                       REPORT.replace("Patient dropouts: 2", "Patient dropouts: -2"),
+                       REPORT.replace("Patient dropouts: 2", "Patient dropouts: 1.5")):
+            with self.assertRaises(ValueError):
+                parse_report(report)
+
+    @patch("urllib.request.urlopen")
+    def test_manual_form_and_example_switch(self, http):
+        """Submit numeric fields to the existing schema; example changes clear old results."""
+        http.return_value.__enter__.return_value.read.return_value = json.dumps(RESULT).encode()
+        app = AppTest.from_file(str(ROOT / "services/streamlit_ui/app.py"))
+        app.secrets.update(CONFIG)
+        app.run()
+        http.assert_not_called()
+        app.radio[0].set_value("Fill in fields").run()
+        next(field for field in app.number_input if field.label == "Patients enrolled").set_value(30)
+        app.button[0].click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(json.loads(http.call_args.args[0].data)["actual_enrollment"], 30)
+        self.assertEqual(app.metric[0].value, "High")
+        http.reset_mock()
+        app.selectbox[0].select("Meeting operational targets").run()
+        self.assertFalse(app.exception)
+        http.assert_not_called()
+        self.assertEqual(app.metric[0].value, "—")
+
+    def test_synthetic_examples_cover_three_levels(self):
+        """Keep meaningful example reports consistent with the real deterministic calculator."""
+        from services.risk_service.risk import calculate_risk
+        self.assertEqual([calculate_risk(site)["risk_level"] for site in sample_sites().values()], ["High", "Medium", "Low"])
 
     @patch("urllib.request.urlopen")
     def test_ai_text_and_unavailable_message(self, http):
