@@ -78,7 +78,7 @@ resource "aws_iam_role_policy" "demo" {
       { Sid = "InspectPublishedImage", Effect = "Allow", Action = "ecr:DescribeImages", Resource = local.ecr_repository_arn },
       {
         Sid      = "DiscoverRegionalInputs", Effect = "Allow"
-        Action   = ["ec2:DescribeVpcs", "ec2:DescribeVpcAttribute", "ec2:DescribeSubnets", "ec2:DescribeInstances", "ec2:DescribeVolumes", "ec2:DescribeLaunchTemplates", "ec2:DescribeLaunchTemplateVersions", "eks:DescribeAddonVersions", "logs:DescribeLogGroups"]
+        Action   = ["ec2:DescribeVpcs", "ec2:DescribeVpcAttribute", "ec2:DescribeRouteTables", "ec2:DescribeSubnets", "ec2:DescribeInstances", "ec2:DescribeVolumes", "ec2:DescribeLaunchTemplates", "ec2:DescribeLaunchTemplateVersions", "eks:DescribeAddonVersions", "logs:DescribeLogGroups"]
         Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = local.region } }
       },
       {

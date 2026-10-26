@@ -59,6 +59,14 @@ Once changes are merged, first verify Stop on the empty environment, then perfor
 
 ## Validation
 
+### Custom launch-template permissions
+
+EKS checks a custom worker launch template using the caller's EC2 permissions. The first live Start exposed missing `ec2:RunInstances` and `ec2:DescribeRouteTables` permissions: the control plane became active, but worker creation failed and CoreDNS waited without nodes.
+
+The operator-managed GitHub-access stack now includes managed policy `clinical-trial-site-risk-monitor-dev-demo-node-launch`. Launch inputs are limited to the selected default subnets and regional resources, instances are limited to `t3.medium`, and the launch template must carry the exact demo project/environment/name tags. Instance and disk tagging is allowed only during `RunInstances` with the project's tags. Route-table discovery is read-only and region-restricted. The fix does not grant network deletion or unrestricted EC2 administration.
+
+This policy is separate from worker-node runtime permissions and fits outside IAM's aggregate inline-policy quota. See [AWS's EKS custom-template requirements](https://docs.aws.amazon.com/eks/latest/userguide/launch-templates.html) and [EC2 launch-template authorization examples](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ExamplePolicies_EC2.html).
+
 Eight Python lifecycle safety tests cover deletion scope, creation rejection during Stop, no infrastructure replacement during Start, application-first cleanup, and repeated Stop. Six mocked Terraform runs cover the EKS configuration, application hardening/digest pinning, main-only IAM trust, scoped state, and bounded role creation. Both workflow files pass actionlint. The verification Job's exact HTTP-check code also passed against a local hardened Docker container, with its service URL redirected to the local test port.
 
 AWS IAM simulation confirmed tagged demo creation and deletion of the named cluster are allowed, while untagged creation, deletion of another cluster or a VPC, editing the demo role's own policy, and image pushes are denied. AWS Access Analyzer reported no findings for the corrected policy. These checks do not substitute for a real EKS rollout and cleanup test.
