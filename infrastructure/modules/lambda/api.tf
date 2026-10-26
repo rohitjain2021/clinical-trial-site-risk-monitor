@@ -19,7 +19,7 @@ resource "aws_apigatewayv2_integration" "lambda" {
   integration_uri        = aws_lambda_function.this.invoke_arn
   integration_method     = "POST"
   payload_format_version = "2.0"
-  timeout_milliseconds   = 10000
+  timeout_milliseconds   = 20000
 }
 
 # IAM authorization requires SigV4 signing and execute-api:Invoke permission.

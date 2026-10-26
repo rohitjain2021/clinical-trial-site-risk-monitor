@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
@@ -24,6 +25,22 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["status"], "ok")
         self.assertEqual(response.json()["rules_version"], "prototype-v1")
+
+    @patch("services.risk_service.app.explain_risk")
+    def test_explanation_success_and_failure_preserve_rules(self, explain):
+        """Return AI text separately, preserving risk results when the model fails."""
+        for status, text in (("available", "High risk reflects the supplied operational concerns."), ("unavailable", None)):
+            explain.return_value = {"status": status, "text": text, "model_id": "amazon.nova-micro-v1:0"}
+            response = self.client.post("/site-assessments", json=self.site)
+            self.assertEqual(response.status_code, 200)
+            result = response.json()
+            self.assertEqual(result["risk_level"], "High")
+            self.assertEqual(len(result["reasons"]), 5)
+            self.assertEqual(result["explanation"]["status"], status)
+        explain.reset_mock()
+        self.assertEqual(self.client.post("/site-assessments", json={}).status_code, 400)
+        self.client.get("/health")
+        explain.assert_not_called()
 
     def test_example_assessment(self):
         """The documented example must return High risk with its five reasons."""

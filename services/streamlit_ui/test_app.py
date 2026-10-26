@@ -33,7 +33,7 @@ class StreamlitTests(unittest.TestCase):
         self.assertIn("/us-east-1/execute-api/aws4_request", request.get_header("Authorization"))
         self.assertEqual(request.get_header("X-amz-security-token"), "synthetic-token")
         self.assertEqual(json.loads(request.data), json.loads(SAMPLE))
-        self.assertEqual(http.call_args.kwargs["timeout"], 10)
+        self.assertEqual(http.call_args.kwargs["timeout"], 25)
 
     @patch("services.streamlit_ui.app.urlopen")
     def test_local_mode_and_invalid_configuration(self, http):
@@ -82,6 +82,22 @@ class StreamlitTests(unittest.TestCase):
         app.button[0].click().run()
         self.assertEqual(app.metric[0].value, "High")
         self.assertFalse(app.exception)
+
+    @patch("urllib.request.urlopen")
+    def test_ai_text_and_unavailable_message(self, http):
+        """Show model text separately and keep the score visible when AI is unavailable."""
+        app = AppTest.from_file(str(ROOT / "services/streamlit_ui/app.py"))
+        app.secrets.update(CONFIG)
+        for status, text in (("available", "Synthetic AI summary."), ("unavailable", None)):
+            http.return_value.__enter__.return_value.read.return_value = json.dumps({**RESULT, "explanation": {"status": status, "text": text, "model_id": "amazon.nova-micro-v1:0"}}).encode()
+            app.run()
+            app.button[0].click().run()
+            self.assertFalse(app.exception)
+            self.assertEqual(app.metric[0].value, "High")
+            if status == "available":
+                self.assertEqual(app.text[0].value, text)
+            else:
+                self.assertIn("unavailable", app.info[0].value)
 
 
 if __name__ == "__main__":

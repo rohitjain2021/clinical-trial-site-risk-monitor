@@ -72,3 +72,7 @@ After AWS authentication, `scripts/configure_lambda_backend.py` reads only the A
 ## Streamlit Access
 
 CI installs the pinned UI requirements, checks SigV4 signing and the real form with synthetic credentials, and runs the mocked `streamlit-access` Terraform policy test. It never receives live UI credentials. The separate operator-run unit creates only its dedicated assessment identity and stores its encrypted state separately; it is outside the GitHub deployment role. See the [Streamlit guide](streamlit.md).
+
+## Bedrock Rollout
+
+The EKS workflow now requires the full SHA of a published Bedrock-capable image; there is no legacy image default. Its bounded risk-service role and annotated service account are Terraform-managed, and the verifier requires an available Nova Micro explanation. The operator owns the exact model boundary; CI cannot edit it. Lambda must also deploy the optional explanation forwarding and 18-second/20-second Lambda/API timeout settings. See the [ordered rollout instructions](bedrock.md#deployment).

@@ -58,7 +58,7 @@ def assess_site(text, config=None):
             raise ValueError("Cloud API credentials are unavailable. Contact the app owner.") from None
     request = Request(url, data=payload, headers=headers)
     try:
-        with urlopen(request, timeout=10) as response:
+        with urlopen(request, timeout=25) as response:
             raw = response.read(65537)
             if len(raw) > 65536:
                 raise ValueError
@@ -122,6 +122,14 @@ def main():
             for reason in result["reasons"]:
                 st.write("- " + reason)
             st.caption("Prototype rules: " + result["rules_version"])
+            explanation = result.get("explanation")
+            if isinstance(explanation, dict):
+                st.subheader("AI explanation")
+                if explanation.get("status") == "available" and isinstance(explanation.get("text"), str):
+                    st.text(explanation["text"])
+                    st.caption("AI-generated summary; the risk level is calculated by the prototype rules.")
+                else:
+                    st.info("AI explanation is unavailable. The risk level and reasons are still shown above.")
 
     with st.expander("Copy sample JSON"):
         st.code(sample, language="json")

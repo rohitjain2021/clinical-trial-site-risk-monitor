@@ -5,11 +5,13 @@ locals {
     cluster = "arn:aws:iam::${local.account_id}:role/${local.demo_cluster_name}-control-plane"
     nodes   = "arn:aws:iam::${local.account_id}:role/${local.demo_cluster_name}-nodes"
     cni     = "arn:aws:iam::${local.account_id}:role/${local.demo_cluster_name}-vpc-cni"
+    risk    = "arn:aws:iam::${local.account_id}:role/${local.demo_cluster_name}-risk-service"
   }
   demo_boundaries = {
     cluster = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
     nodes   = "arn:aws:iam::${local.account_id}:policy/${local.demo_cluster_name}-nodes-boundary"
     cni     = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+    risk    = "arn:aws:iam::${local.account_id}:policy/${local.demo_cluster_name}-risk-service-boundary"
   }
   demo_oidc_arn = "arn:aws:iam::${local.account_id}:oidc-provider/oidc.eks.${local.region}.amazonaws.com/id/*"
   demo_eks_resources = [
@@ -28,6 +30,22 @@ locals {
     "arn:aws:ecr:${local.region}:602401143452:repository/eks/kube-proxy",
     "arn:aws:ecr:${local.region}:602401143452:repository/eks/coredns"
   ]
+}
+
+# The application can invoke only the regional Nova Micro model. CI cannot edit
+# this boundary or grant other Bedrock, storage, or infrastructure permissions.
+resource "aws_iam_policy" "risk_boundary" {
+  name = "${local.demo_cluster_name}-risk-service-boundary"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Action    = "bedrock:InvokeModel"
+      Resource  = "arn:aws:bedrock:${local.region}::foundation-model/amazon.nova-micro-v1:0"
+      Condition = { StringEquals = { "aws:RequestedRegion" = local.region } }
+    }]
+  })
+  tags = var.tags
 }
 
 data "aws_iam_policy" "worker" {
@@ -65,7 +83,7 @@ resource "aws_iam_role" "demo" {
 }
 
 resource "aws_iam_role_policy" "demo" {
-  depends_on = [aws_iam_policy.demo_nodes_boundary]
+  depends_on = [aws_iam_policy.demo_nodes_boundary, aws_iam_policy.risk_boundary]
   name       = "manage-dev-eks-demo"
   role       = aws_iam_role.demo.id
   policy = jsonencode({
@@ -130,11 +148,11 @@ resource "aws_iam_role_policy" "demo" {
       },
       {
         Sid       = "AttachServicePolicies", Effect = "Allow", Action = ["iam:AttachRolePolicy", "iam:DetachRolePolicy"]
-        Resource  = values(local.demo_role_arns)
+        Resource  = [for key in ["cluster", "nodes", "cni"] : local.demo_role_arns[key]]
         Condition = { ArnEquals = { "iam:PolicyARN" = ["arn:aws:iam::aws:policy/AmazonEKSClusterPolicy", "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy", "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"] } }
       },
       {
-        Sid       = "PassDemoRoles", Effect = "Allow", Action = "iam:PassRole", Resource = values(local.demo_role_arns)
+        Sid       = "PassDemoRoles", Effect = "Allow", Action = "iam:PassRole", Resource = [for key in ["cluster", "nodes", "cni"] : local.demo_role_arns[key]]
         Condition = { StringEquals = { "iam:PassedToService" = ["eks.amazonaws.com", "ec2.amazonaws.com"] } }
       },
       {

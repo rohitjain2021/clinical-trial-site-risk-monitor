@@ -53,7 +53,7 @@ resource "aws_lambda_function" "this" {
   filename         = data.archive_file.lambda.output_path
   source_code_hash = data.archive_file.lambda.output_base64sha256
   memory_size      = 128
-  timeout          = 8
+  timeout          = 18
   tags             = var.tags
 
   environment {

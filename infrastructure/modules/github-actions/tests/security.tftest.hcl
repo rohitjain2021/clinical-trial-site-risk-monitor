@@ -31,6 +31,10 @@ variables {
 }
 
 run "scoped_github_access" {
+  assert {
+    condition     = jsondecode(aws_iam_policy.risk_boundary.policy).Statement[0].Action == "bedrock:InvokeModel" && jsondecode(aws_iam_policy.risk_boundary.policy).Statement[0].Resource == "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-micro-v1:0" && !contains(one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "PassDemoRoles"]).Resource, local.demo_role_arns["risk"])
+    error_message = "Cap the application at regional Nova Micro access; do not pass its role to EC2/EKS services."
+  }
   command = apply
   assert {
     condition     = jsondecode(aws_iam_policy.lambda_boundary.policy).Statement[1].Condition.StringEquals["aws:RequestedRegion"] == "us-east-1" && jsondecode(aws_iam_policy.lambda_boundary.policy).Statement[2].Effect == "Deny" && jsondecode(aws_iam_policy.lambda_boundary.policy).Statement[2].Condition.ArnEquals["lambda:SourceFunctionArn"] == local.function_arn

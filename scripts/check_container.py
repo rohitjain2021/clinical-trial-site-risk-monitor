@@ -9,11 +9,12 @@ from urllib.request import Request, urlopen
 from uuid import uuid4
 
 
-def check_container():
+def check_container(bedrock_enabled=False):
     """Run an isolated container and verify its API before deployment.
 
     Use a random loopback port and synthetic data to test the actual image.
     Always remove this test's container, including when an assertion fails.
+    Enabled mode has no credentials and must prove graceful model fallback.
     """
     name = f"clinical-trial-risk-check-{uuid4().hex}"
     try:
@@ -21,6 +22,8 @@ def check_container():
             "docker", "run", "--detach", "--name", name,
             "--publish", "127.0.0.1::8000", "--read-only", "--tmpfs", "/tmp",
             "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
+            "--env", "BEDROCK_ENABLED=" + str(bedrock_enabled).lower(),
+            "--env", "AWS_EC2_METADATA_DISABLED=true",
             "clinical-trial-risk-service:local",
         ], check=True, timeout=60)
         info = json.loads(subprocess.check_output(
@@ -58,6 +61,11 @@ def check_container():
             assert result["risk_level"] == "High"
             assert result["rules_version"] == "prototype-v1"
             assert len(result["reasons"]) == 5
+            if bedrock_enabled:
+                assert result["explanation"]["status"] == "unavailable"
+                assert result["explanation"]["text"] is None
+            else:
+                assert "explanation" not in result
         print("POST /site-assessments: 200, High risk, five reasons, no-store", flush=True)
 
         try:
@@ -75,3 +83,4 @@ def check_container():
 
 if __name__ == "__main__":
     check_container()
+    check_container(bedrock_enabled=True)

@@ -74,15 +74,20 @@ The authenticated API Gateway -> Lambda -> ALB -> FastAPI path is deployed and v
 - [ ] Add Snowflake storage for trial-site data and assessment results.
 - [x] Build and verify a simple local Streamlit interface with copy-paste JSON and risk results.
 - [x] Add signed API requests and safe backend errors to the single-site Streamlit UI.
-- [ ] Save private Community Cloud Secrets and verify the hosted Streamlit form.
+- [x] Save private Community Cloud Secrets and verify the hosted Streamlit form (High risk and five reasons).
 - [ ] Extend Streamlit for multiple sites.
 - [x] Define dedicated, route-scoped Streamlit API access through Terraform and Terragrunt. Hosting uses Streamlit Community Cloud.
-- [ ] Add Amazon Bedrock explanations based on calculated risk results.
+- [x] Implement optional Nova Micro explanations, scoped pod access, and UI success/fallback behavior; test the real model locally.
+- [ ] Publish and deploy the Bedrock-capable image, then verify EKS identity and the hosted AI explanation.
 - [ ] Extend CI/CD to deploy the ALB unit and remaining application components.
 - [ ] Add monitoring, alerts, and end-to-end tests for the complete workflow.
 - [x] Update the architecture diagram with GitHub Actions, Docker, ECR, service connections, and implemented versus planned components.
 
 ## Documentation
+
+### Bedrock Explanations
+
+[Read the Bedrock guide](docs/bedrock.md) for the Nova Micro model, prompt, response contract, scoped IAM role, fallback behavior, and rollout steps.
 
 ### Streamlit UI and API Connection
 

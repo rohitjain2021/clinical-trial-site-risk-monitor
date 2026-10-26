@@ -96,7 +96,7 @@ Lambda runs application code on demand without us operating an application serve
 
 It is the request-handling layer behind API Gateway. The deployed Python handler supports liveness, validates a site record, and forwards valid JSON through the private ALB to FastAPI. Terraform packages `handler.py` at the ZIP root and sets the entry point to `handler.lambda_handler`.
 
-The function has 128 MB of memory and an 8-second timeout, with a 3-second backend HTTP timeout. Its role permits its own logs and Lambda-service ENI management; function-code EC2 calls are explicitly denied. It cannot read Terraform state or access Snowflake/Bedrock.
+The function has 128 MB of memory and an 18-second timeout, with a 12-second backend HTTP timeout. Its role permits its own logs and Lambda-service ENI management; function-code EC2 calls are explicitly denied. It cannot read Terraform state or access Snowflake/Bedrock.
 
 ## Small example
 
@@ -498,7 +498,7 @@ The state bucket is unrelated to this application data store. A successful POST 
 
 # Amazon Bedrock
 
-**Status: planned; no model is selected or invoked.**
+**Status: Nova Micro implemented and tested locally against Bedrock; updated EKS image rollout pending.**
 
 ## What it is and what it does
 
@@ -506,16 +506,16 @@ Bedrock provides managed access to foundation models for generative AI applicati
 
 ## Why and how we plan to use it
 
-It will turn calculated risk factors into readable operational explanations. We should implement and test risk rules first, then ground generated explanations in those results. Model choice, prompts, permissions, data handling, and evaluation remain to be defined.
+FastAPI calls `amazon.nova-micro-v1:0` in `us-east-1` through Converse to summarize only the calculated risk level, rule version, and reasons. The dedicated IRSA role and its operator-managed boundary permit only that model. No site names or IDs are sent. The prompt requests 2 or 3 factual sentences, capped at 180 output tokens. Model errors leave the original result intact. See the [Bedrock implementation and deployment guide](bedrock.md).
 
 ## Small example
 
 ```text
 Calculated factors: enrollment shortfall, schedule delay, unresolved issues
-Planned explanation: explain how those measured factors contributed to the classification
+Optional AI explanation: summarize those calculated factors without changing the classification
 ```
 
-This does not mean the current API performs AI analysis. An explanation must not invent facts or replace the agreed risk calculation.
+The model has been exercised with synthetic High/Medium/Low results through the local FastAPI route. The new container and Lambda forwarding changes must be deployed before hosted users receive explanations. AI text remains separate from the deterministic score and can be unavailable.
 
 [Official Bedrock overview](https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html).
 

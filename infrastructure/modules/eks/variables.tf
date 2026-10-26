@@ -55,11 +55,11 @@ variable "tags" {
 }
 
 variable "role_boundaries" {
-  description = "Operator-managed permissions boundaries for cluster, node, and CNI roles."
+  description = "Operator-managed boundaries for cluster, node, CNI, and risk-service roles."
   type        = map(string)
   validation {
-    condition     = alltrue([for key in ["cluster", "nodes", "cni"] : can(regex("^arn:aws:iam::(aws|[0-9]{12}):policy/.+$", var.role_boundaries[key]))])
-    error_message = "Supply all three operator-managed role boundary ARNs."
+    condition     = alltrue([for key in ["cluster", "nodes", "cni", "risk"] : can(regex("^arn:aws:iam::(aws|[0-9]{12}):policy/.+$", var.role_boundaries[key]))])
+    error_message = "Supply all four operator-managed role boundary ARNs."
   }
 }
 

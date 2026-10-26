@@ -9,9 +9,9 @@ on:
         default: false
         required: true
       image_commit:
-        description: 'Full previously published image commit SHA'
+        description: 'Full published Bedrock-capable image commit SHA'
         type: string
-        default: '817b71ca41138e6ffe07d68aeffe67ee6705c817'
+        default: ''
         required: true
 
 permissions:
@@ -74,6 +74,6 @@ jobs:
         run: |
           {
             echo "EKS deployment requested: $DEPLOY. Result: $RESULT."
-            echo 'Apply provisions EKS and private FastAPI; ALB and Lambda integration remain planned.'
+            echo 'Apply provisions EKS and private FastAPI with its Nova Micro role. ALB and Lambda use their separate Terraform units.'
             echo 'Resources remain running after success or failure. No Start/Stop or automatic destruction is configured.'
           } >> "$GITHUB_STEP_SUMMARY"
