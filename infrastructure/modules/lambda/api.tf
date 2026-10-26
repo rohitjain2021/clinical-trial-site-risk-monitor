@@ -8,7 +8,7 @@ locals {
 
 resource "aws_apigatewayv2_api" "this" {
   name          = "${var.function_name}-api"
-  description   = "Authenticated health and site-record validation API"
+  description   = "Authenticated health and operational site-risk assessment API"
   protocol_type = "HTTP"
   tags          = var.tags
 }
@@ -19,7 +19,7 @@ resource "aws_apigatewayv2_integration" "lambda" {
   integration_uri        = aws_lambda_function.this.invoke_arn
   integration_method     = "POST"
   payload_format_version = "2.0"
-  timeout_milliseconds   = 5000
+  timeout_milliseconds   = 10000
 }
 
 # IAM authorization requires SigV4 signing and execute-api:Invoke permission.

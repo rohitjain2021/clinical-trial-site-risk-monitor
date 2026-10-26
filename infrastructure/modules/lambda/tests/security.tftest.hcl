@@ -31,6 +31,14 @@ run "least_privilege_logging" {
   command = apply
 
   assert {
+    condition     = jsondecode(aws_iam_role_policy.vpc.policy).Statement[1].Effect == "Deny" && jsondecode(aws_iam_role_policy.vpc.policy).Statement[1].Condition.ArnEquals["lambda:SourceFunctionArn"] == "arn:aws:lambda:us-east-1:123456789012:function:test-health" && jsondecode(aws_iam_role_policy.vpc.policy).Statement[0].Condition.StringEquals["aws:RequestedRegion"] == "us-east-1"
+    error_message = "ENI permissions must be regional and explicitly denied to function code."
+  }
+  assert {
+    condition     = length(aws_lambda_function.this.vpc_config[0].subnet_ids) == 0 && !contains(keys(aws_lambda_function.this.environment[0].variables), "RISK_API_URL")
+    error_message = "A disconnected Lambda must have no backend URL or VPC subnet attachment."
+  }
+  assert {
     condition     = toset(jsondecode(aws_iam_role_policy.logging.policy).Statement[0].Action) == toset(["logs:CreateLogStream", "logs:PutLogEvents"])
     error_message = "The execution policy must grant only log-stream creation and log writes."
   }
@@ -64,6 +72,33 @@ run "least_privilege_logging" {
     condition     = aws_apigatewayv2_stage.dev.default_route_settings[0].throttling_rate_limit == 5 && aws_apigatewayv2_stage.dev.default_route_settings[0].throttling_burst_limit == 10 && aws_cloudwatch_log_group.api.retention_in_days == 14
     error_message = "Use bounded request rates and finite API access log retention."
   }
+}
+
+run "connect_only_configured_backend" {
+  command = apply
+  variables {
+    backend = {
+      url               = "http://internal-clinical-trial-risk-dev-alb-example.us-east-1.elb.amazonaws.com"
+      subnet_ids        = ["subnet-aaaaaaaaaaaaaaaaa", "subnet-bbbbbbbbbbbbbbbbb"]
+      security_group_id = "sg-ccccccccccccccccc"
+    }
+  }
+  assert {
+    condition     = toset(aws_lambda_function.this.vpc_config[0].subnet_ids) == toset(var.backend.subnet_ids) && toset(aws_lambda_function.this.vpc_config[0].security_group_ids) == toset([var.backend.security_group_id]) && aws_lambda_function.this.environment[0].variables["RISK_API_URL"] == var.backend.url && aws_lambda_function.this.timeout == 8 && aws_apigatewayv2_integration.lambda.timeout_milliseconds == 10000
+    error_message = "Use only the configured ALB client network, with backend timeout shorter than Lambda and API timeouts."
+  }
+}
+
+run "reject_unrelated_backend" {
+  command = plan
+  variables {
+    backend = {
+      url               = "http://unrelated.example.com"
+      subnet_ids        = ["subnet-aaaaaaaaaaaaaaaaa", "subnet-bbbbbbbbbbbbbbbbb"]
+      security_group_id = "sg-ccccccccccccccccc"
+    }
+  }
+  expect_failures = [var.backend]
 }
 
 run "reject_indefinite_retention" {

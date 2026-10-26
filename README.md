@@ -31,7 +31,7 @@ The application provides an easy way to review trial-site performance and detect
 
 Terragrunt manages environment configuration and orchestrates Terraform, which provisions the AWS infrastructure shown above.
 
-The diagram shows the target architecture. EKS/FastAPI and the internal ALB now run privately using the published ECR image. Lambda-to-ALB and the remaining application integrations are still planned.
+The diagram shows the target architecture. EKS/FastAPI and the internal ALB now run privately using the published ECR image. Lambda now calls the private ALB; hosted Streamlit integration and the remaining data/AI components are still planned.
 
 ## Development Setup
 
@@ -47,15 +47,15 @@ The manual [EKS deployment workflow](docs/deployment.md) plans by default and pr
 
 ## API
 
-The development HTTP API provides authenticated `GET /health` and `POST /site-assessments` routes. Site submissions support validation only; storage and risk analysis will be added later. See the [API guide](docs/api.md) for the contract, authentication, and example data.
+The development HTTP API provides authenticated `GET /health` and `POST /site-assessments` routes. Lambda validates site records and calls FastAPI through the private ALB to return prototype risk levels and reasons. Records are not stored. See the [API guide](docs/api.md) for the contract, authentication, and example data.
 
 ## Things to Do
 
-The Lambda and authenticated API Gateway are deployed. Site submissions currently support validation only; the following work remains:
+The authenticated API Gateway ? Lambda ? ALB ? FastAPI path is deployed and verified. The following work remains:
 
 - [x] Document [prototype risk rules](docs/risk-rules.md), classification reasons, and sample cases. Thresholds require review before operational use.
-- [x] Implement and test the standalone prototype risk calculation locally; it is not connected to the deployed API yet.
-- [x] Build and test the [FastAPI risk service locally](docs/risk-service.md) using representative site data. It is deployed privately on EKS; Lambda integration remains pending.
+- [x] Implement and test the standalone prototype risk calculation locally; it is used by FastAPI behind the deployed API.
+- [x] Build and test the [FastAPI risk service locally](docs/risk-service.md) using representative site data. It is deployed privately on EKS and connected to Lambda through the ALB.
 - [x] Build and test the [FastAPI container locally](docs/container.md).
 - [x] Add container build and HTTP checks to GitHub Actions; each run reports its result.
 - [x] Provision the private [ECR risk-service repository](docs/ecr.md) through Terraform and Terragrunt.
@@ -69,7 +69,8 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [x] Merge the verification-job routing fix and pass the GitHub deployment workflow.
 - [x] Review the EKS plan and provision through Terraform and Terragrunt.
 - [x] Provision and verify the private Application Load Balancer through Terraform/Terragrunt.
-- [ ] Connect Lambda to the deployed risk service through the ALB.
+- [x] Connect Lambda to the risk service through the ALB and verify signed High/Medium/Low assessments.
+- [ ] Merge the Lambda integration changes and rerun its GitHub deployment workflow.
 - [ ] Add Snowflake storage for trial-site data and assessment results.
 - [x] Build and verify a simple local Streamlit interface with copy-paste JSON and risk results.
 - [ ] Extend Streamlit for multiple sites and the authenticated deployed API.
@@ -88,6 +89,10 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 ### EKS Deployment
 
 [Read the deployment guide](docs/deployment.md) for the manual plan/apply workflow, current scope, and failure recovery.
+
+### Lambda Backend Connection
+
+[Read the Lambda connection guide](docs/lambda-backend.md) for private settings, VPC permissions, backend errors, and disconnect-before-teardown steps.
 
 ### Private Application Load Balancer
 
@@ -111,7 +116,7 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 
 ### Risk Rules
 
-[Read the prototype risk rules](docs/risk-rules.md) for proposed Low, Medium, and High thresholds, calculation examples, and limitations. These rules are not implemented in the deployed API yet.
+[Read the prototype risk rules](docs/risk-rules.md) for proposed Low, Medium, and High thresholds, calculation examples, and limitations. These prototype rules are implemented in FastAPI and available through the authenticated deployed API.
 
 ### Repository Security
 

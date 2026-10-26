@@ -19,7 +19,7 @@ Shorter ALB/target-group names respect AWS's name-length limit. Tags retain the 
 
 The ALB is internal and reuses the two existing EKS subnets. It accepts port `80` from the EKS security group for in-cluster checks and from the dedicated client group reserved for Lambda. Its egress is restricted to worker port `30800`; the added worker ingress rule accepts that port from the ALB group. The client group permits only outbound HTTP to the ALB. No internet CIDR rules, new VPC, subnet, route, or NAT gateway are created. Existing EKS-managed self-access rules remain intact.
 
-The listener currently uses private HTTP, without an ALB TLS certificate. This step does not provide end-to-end TLS or attach Lambda to the VPC. Use synthetic prototype data. Lambda-to-ALB integration and any internal TLS requirements are separate implementation work.
+The listener currently uses private HTTP, without an ALB TLS certificate. This does not provide end-to-end TLS. Lambda is now attached to the dedicated client group and calls the private endpoint. Use synthetic prototype data. Internal TLS remains separate work; the public API Gateway continues to require HTTPS and IAM authentication.
 
 ## Terraform and Deployment
 
@@ -50,7 +50,7 @@ Local tests cover transient readiness, persistent failure, incorrect results, in
 
 The ALB adds its own running and usage charges to the EKS estimate; see [AWS load-balancer pricing](https://aws.amazon.com/elasticloadbalancing/pricing/). It remains provisioned until explicit teardown. No idle timer or automatic shutdown is configured.
 
-When asked to remove the backend, use reviewed saved destroy plans in this order:
+When asked to remove the backend, first [disconnect Lambda through Terraform](lambda-backend.md#explicit-disconnect-before-teardown) and wait for AWS to release its client-group ENIs. Keep the execution role and ENI permissions until release. Then use reviewed saved destroy plans in this order:
 
 1. `infrastructure/live/dev/alb`: removes its test job, worker attachment, ALB, target group, listener, and project access groups/rules.
 2. `infrastructure/live/dev/demo-app`: removes the application while Kubernetes is still available.

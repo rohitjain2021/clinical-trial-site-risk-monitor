@@ -68,7 +68,7 @@ Worker rates were read through the EC2 Spot price-history API for Linux/UNIX in 
 
 ## Future Cleanup
 
-The manual workflow plans by default and applies when deployment is selected. Resources remain running after success or failure. There is no Start/Stop workflow or automatic destruction. When removal is explicitly requested, destroy the ALB unit first, then the Kubernetes application unit and EKS through reviewed Terragrunt plans.
+The manual workflow plans by default and applies when deployment is selected. Resources remain running after success or failure. There is no Start/Stop workflow or automatic destruction. When removal is explicitly requested, disconnect Lambda through Terraform and wait for its VPC interfaces to be released. Then destroy the ALB unit, Kubernetes application unit, and EKS through reviewed Terragrunt plans. See the [disconnect guide](lambda-backend.md#explicit-disconnect-before-teardown).
 
 Remove `infrastructure/live/dev/alb` while Kubernetes is still available so its verification job, worker attachment, load balancer, and security-group references are deleted first. Then remove the application unit. Then review a destroy plan for the EKS unit only. Terraform tracks the project cluster, node group, IAM roles, add-ons, launch template, and log group; EKS manages the corresponding worker instances, instance profile, and cluster security group. Root disks are set to delete on termination. Future persistent volumes or other retained data need a separate decision.
 

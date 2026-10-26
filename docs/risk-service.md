@@ -9,7 +9,7 @@ For container packaging and its current verification status, see the [local cont
 | `GET /health` | Check service connectivity and rule version | `200`, `status: ok` |
 | `POST /site-assessments` | Validate one site and calculate prototype risk | `200`, risk level, rule version, and reasons |
 
-This is separate from the deployed API Gateway endpoint, which still returns validation-only results. Lambda does not call this service yet. Snowflake, Bedrock, EKS, and the load balancer are not connected.
+The service is deployed on EKS behind the private ALB. The authenticated API Gateway endpoint calls Lambda, which validates input and forwards it to this service. Snowflake and Bedrock remain planned integrations. See the [Lambda backend guide](lambda-backend.md).
 
 ## Install Locally
 

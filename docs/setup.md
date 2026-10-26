@@ -117,7 +117,7 @@ Expected response:
 }
 ```
 
-The body is a JSON string to match the API Gateway proxy response format. This local check does not deploy resources. The HTTP API now exposes authenticated health and validation-only POST routes; see the [API guide](api.md). Risk analysis is not implemented yet.
+The body is a JSON string to match the API Gateway proxy response format. This local check does not deploy resources. The HTTP API exposes authenticated health and risk-assessment POST routes; see the [API guide](api.md). Risk assessments require the connected EKS backend.
 
 ## 4. Validate the Lambda Terraform Module
 

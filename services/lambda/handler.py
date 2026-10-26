@@ -1,9 +1,13 @@
-"""Health checks and validation-only site submissions for the initial HTTP API."""
+"""Validate aggregate site records and request risk assessments through the private ALB."""
 
 import base64
 import binascii
 import json
+from http.client import HTTPException
+import os
 import re
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 MAX_BODY_BYTES = 64 * 1024
 COUNT_FIELDS = (
@@ -22,7 +26,7 @@ def _response(status_code, body):
 
 
 def _validate_site(record):
-    """Check aggregate fields before future risk analysis; reject unknown fields.
+    """Check aggregate fields before forwarding to FastAPI; reject unknown fields.
 
     Return field errors without echoing values so error responses do not repeat
     potentially sensitive input. Patient-level fields are outside this contract.
@@ -55,12 +59,53 @@ def _validate_site(record):
     return errors
 
 
+def _assess_site(record):
+    """Call the configured private backend without forwarding client credentials.
+
+    Bound HTTP time and response size, verify the result belongs to this site,
+    and expose only the documented risk fields. Backend failures stay generic
+    so responses cannot leak internal URLs or submitted data.
+    """
+    base = os.environ.get("RISK_API_URL")
+    if not base:
+        return _response(503, {"error": "Risk service is not configured."})
+    request = Request(base + "/site-assessments",
+                      data=json.dumps(record, separators=(",", ":")).encode("utf-8"),
+                      headers={"Content-Type": "application/json"})
+    try:
+        with urlopen(request, timeout=3) as response:
+            raw = response.read(MAX_BODY_BYTES + 1)
+            if response.status != 200 or len(raw) > MAX_BODY_BYTES:
+                return _response(502, {"error": "Invalid risk service response."})
+            result = json.loads(raw.decode("utf-8"))
+        if not isinstance(result, dict) or result.get("site_id") != record["site_id"]:
+            return _response(502, {"error": "Invalid risk service response."})
+        if (result.get("risk_level") not in ("Low", "Medium", "High")
+                or not isinstance(result.get("rules_version"), str) or not result["rules_version"]
+                or not isinstance(result.get("reasons"), list) or not result["reasons"]
+                or not all(isinstance(reason, str) and reason for reason in result["reasons"])):
+            return _response(502, {"error": "Invalid risk service response."})
+        return _response(200, {key: result[key] for key in ("site_id", "risk_level", "rules_version", "reasons")})
+    except HTTPError as error:
+        error.close()
+        return _response(502, {"error": "Risk service request failed."})
+    except TimeoutError:
+        return _response(504, {"error": "Risk service timed out."})
+    except URLError as error:
+        status = 504 if isinstance(error.reason, TimeoutError) else 503
+        return _response(status, {"error": "Risk service is unavailable."})
+    except OSError:
+        return _response(503, {"error": "Risk service is unavailable."})
+    except (ValueError, UnicodeError, HTTPException):
+        return _response(502, {"error": "Invalid risk service response."})
+
+
 def lambda_handler(event, context):
-    """Route HTTP API v2 events to health checks or synchronous site validation.
+    """Route HTTP API v2 events to liveness or validated synchronous assessment.
 
     Empty direct invocations remain health probes for the existing pipeline.
-    POST does not save data, queue work, or calculate risk. Context is unused
-    because neither operation needs AWS invocation metadata.
+    FastAPI owns risk calculation; this handler validates and forwards without
+    storing records. Liveness remains available when the backend is disconnected.
     """
     route = event.get("routeKey")
     if event == {} or route == "GET /health":
@@ -89,7 +134,4 @@ def lambda_handler(event, context):
     errors = _validate_site(record)
     if errors:
         return _response(400, {"error": "Invalid site data.", "details": errors})
-    return _response(200, {
-        "status": "validated", "site_id": record["site_id"],
-        "message": "Site data is valid. Storage and risk analysis are not implemented yet.",
-    })
+    return _assess_site(record)

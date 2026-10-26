@@ -1,10 +1,10 @@
 # Prototype Operational Risk Rules
 
-**Rule version: `prototype-v1`. Status: proposed baseline for local implementation and testing.**
+**Rule version: `prototype-v1`. Status: implemented prototype, tested locally and through the deployed API.**
 
 These thresholds are project assumptions, not clinically validated standards or trial-approved operating limits. They identify potential operational concerns, not patient safety or treatment risk. Review them with clinical operations before using classifications to make operational decisions.
 
-The calculation is implemented locally in `services/risk_service/risk.py`. The deployed API still validates data only; the calculator is not connected to it or deployed.
+The calculation is implemented in `services/risk_service/risk.py` and exposed by FastAPI on EKS through API Gateway, Lambda, and the private ALB.
 
 ## Inputs
 
@@ -82,7 +82,7 @@ Local calculation output:
 }
 ```
 
-This is the standalone prototype calculation result, not the current API response. Keep the existing validation-only API contract until the risk service integration is intentionally introduced.
+The calculator and deployed API return this prototype result. See the [API guide](api.md) for authentication, validation, and error responses.
 
 ## Sample Cases for Implementation
 
@@ -117,4 +117,4 @@ python -c "import json; from pathlib import Path; from services.risk_service.ris
 
 The calculator uses only the Python standard library. It raises `ValueError` for invalid input and does not modify the submitted dictionary. Validation follows the existing API field contract, but the module has no dependency on the Lambda handler or AWS.
 
-The function is now exposed by a [local FastAPI service](risk-service.md). The deployed API remains validation-only; connecting Lambda and deploying the service are later steps.
+The function is exposed by the [FastAPI service](risk-service.md), available locally and through the authenticated deployed API. See the [Lambda backend guide](lambda-backend.md) for the connected request path.

@@ -48,6 +48,17 @@ resource "aws_iam_policy" "lambda_boundary" {
       Effect   = "Allow"
       Action   = ["logs:CreateLogStream", "logs:PutLogEvents"]
       Resource = "${local.log_group_arn}:log-stream:*"
+      }, {
+      Sid       = "LambdaServiceNetworking", Effect = "Allow"
+      Action    = ["ec2:CreateNetworkInterface", "ec2:DescribeNetworkInterfaces", "ec2:DescribeSubnets", "ec2:DeleteNetworkInterface", "ec2:AssignPrivateIpAddresses", "ec2:UnassignPrivateIpAddresses"]
+      Resource  = "*"
+      Condition = { StringEquals = { "aws:RequestedRegion" = local.region } }
+      }, {
+      # AWS's SourceFunctionArn key distinguishes handler code from ENI service calls.
+      Sid       = "DenyFunctionCodeNetworking", Effect = "Deny"
+      Action    = ["ec2:CreateNetworkInterface", "ec2:DescribeNetworkInterfaces", "ec2:DescribeSubnets", "ec2:DeleteNetworkInterface", "ec2:AssignPrivateIpAddresses", "ec2:UnassignPrivateIpAddresses", "ec2:DetachNetworkInterface"]
+      Resource  = "*"
+      Condition = { ArnEquals = { "lambda:SourceFunctionArn" = local.function_arn } }
     }]
   })
   tags = var.tags
@@ -101,14 +112,32 @@ resource "aws_iam_role_policy" "deployment" {
         Sid    = "ManageOneLambda"
         Effect = "Allow"
         Action = [
-          "lambda:CreateFunction", "lambda:DeleteFunction", "lambda:GetFunction",
+          "lambda:DeleteFunction", "lambda:GetFunction",
           "lambda:GetFunctionConfiguration", "lambda:GetFunctionCodeSigningConfig",
           "lambda:GetFunctionConcurrency", "lambda:GetRuntimeManagementConfig",
-          "lambda:UpdateFunctionCode", "lambda:UpdateFunctionConfiguration",
+          "lambda:UpdateFunctionCode",
           "lambda:ListVersionsByFunction", "lambda:ListTags", "lambda:TagResource",
           "lambda:UntagResource", "lambda:InvokeFunction"
         ]
         Resource = local.function_arn
+      },
+      {
+        Sid      = "ReadAlbDependency", Effect = "Allow", Action = "s3:GetObject"
+        Resource = "${local.state_bucket_arn}/dev/alb/terraform.tfstate"
+      },
+      {
+        Sid      = "DiscoverLambdaNetwork", Effect = "Allow"
+        Action   = ["ec2:DescribeSecurityGroups", "ec2:DescribeSubnets", "ec2:DescribeVpcs", "ec2:GetSecurityGroupsForVpc"]
+        Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = local.region } }
+      },
+      {
+        Sid    = "ConfigureLambdaInExistingNetwork", Effect = "Allow"
+        Action = ["lambda:CreateFunction", "lambda:UpdateFunctionConfiguration"], Resource = local.function_arn
+        # Missing VPC keys permit non-network updates and an explicit disconnect.
+        Condition = {
+          StringEqualsIfExists        = { "lambda:VpcIds" = data.aws_vpc.demo_network.id }
+          "ForAllValues:StringEquals" = { "lambda:SubnetIds" = data.aws_subnets.demo_network.ids }
+        }
       },
       {
         Sid      = "CreateBoundedExecutionRole"

@@ -11,7 +11,8 @@ Deployment identifiers come from encrypted Actions secrets and an ignored local 
 | Pull request | Python response and risk-service tests, container build and HTTP checks, formatting, Terraform validation, mocked security tests | None; no OIDC permission |
 | Push to `main` | Same checks | Authenticate and generate a Lambda plan |
 | Manual run on `main`, `deploy` unchecked | Same checks | Generate a Lambda plan |
-| Manual run on `main`, `deploy` checked | Same checks | Plan, apply, invoke Lambda, verify signed API requests and unsigned denial |
+| Manual run on `main`, `deploy` checked | Same checks | Discover ALB settings, plan/apply Lambda, verify signed risk assessments and unsigned denial |
+| Manual run on `main`, `deploy` and `disconnect_backend` checked | Same checks | Detach Lambda from the backend; verify liveness, assessment 503, and unsigned denial; EKS/ALB are not destroyed |
 | Manual run on `main`, `publish_image` checked | Same checks, then rebuild and test the image to publish | Publish a commit-tagged image to private ECR; Lambda apply still requires `deploy` |
 
 The plan appears in masked run logs; raw plan output is not copied to the job summary. Pushes never apply infrastructure changes. To deploy, first review a main-branch plan, then open **Actions → Lambda CI and dev deployment → Run workflow**, select `main`, and check `deploy`. This is an explicit deployment approval by a repository maintainer, not a GitHub Environment required-reviewer gate. The manual run creates a fresh plan for the selected commit and applies that plan in the same job; it does not reuse an earlier run's plan. Add a protected environment and matching OIDC trust through infrastructure as code if separate reviewer approval is later required.
@@ -32,13 +33,13 @@ The [GitHub access Terraform module](../infrastructure/modules/github-actions/ma
 
 - GitHub's OIDC provider with audience `sts.amazonaws.com`.
 - Role `clinical-trial-site-risk-monitor-dev-github-deploy`, trusted only for this repository's `main` branch. Exact legacy and immutable-ID subject formats are accepted; forks, pull-request subjects, feature branches, and environment subjects are not.
-- An inline deployment policy scoped to the development Lambda, its execution role, log group, state key, and lock key.
+- An inline deployment policy scoped to the development Lambda, its execution role, log group, state key, and lock key. It may also read the exact ALB state key and discover regional network metadata; function create/update is restricted to the selected default VPC/subnets.
 - Inline policy `publish-dev-risk-service-image`, permitting image uploads and inspection on the private risk-service ECR repository, plus regional ECR authentication. It grants no repository administration or image deletion.
-- A separate Lambda execution-role permissions boundary that permits only stream creation and event writes in the function's own log group.
+- A separate Lambda execution-role permissions boundary for its own logs and regional Lambda-managed ENI operations, with an explicit function-code EC2 deny.
 
-The deployment role cannot edit its own trust or permissions, change the boundary policy, remove the Lambda boundary, manage the state bucket, or access the GitHub-access stack's state object. Creating or setting the execution role boundary requires the exact pre-provisioned boundary ARN. Passing that role is allowed only to the Lambda service. `logs:DescribeLogGroups` requires a resource wildcard and is restricted to `us-east-1`; the remaining resource permissions are scoped to the project's resources. `s3:ListBucket` permits listing this state bucket; state object reads/writes are limited to Lambda's key and lock.
+The deployment role cannot edit its own trust or permissions, change the boundary policy, remove the Lambda boundary, manage the state bucket, or access the GitHub-access stack's state object. Creating or setting the execution role boundary requires the exact pre-provisioned boundary ARN. Passing that role is allowed only to the Lambda service. Log-group and required network discovery use resource wildcards restricted to `us-east-1`; mutable resources remain project-scoped. `s3:ListBucket` permits listing this state bucket; state writes are limited to Lambda's key and lock, with read-only access to the ALB dependency key.
 
-The boundary is a cap, not a permission grant: the execution role also needs its inline logging policy. Future application permissions must be reviewed and added to both policies through Terraform when needed.
+The boundary is a cap, not a permission grant: the execution role also needs its inline logging and ENI policies. Future application permissions must be reviewed and added to both policies through Terraform when needed.
 
 Operator credentials manage the GitHub access stack separately. Its state is in the project's S3 bucket at `dev/github-actions/terraform.tfstate`. The CI deployment role manages only `dev/lambda/terraform.tfstate` and its `.tflock` object.
 
@@ -63,3 +64,7 @@ Local validation includes mocked IAM/security tests, Terraform validation, a no-
 GitHub-to-AWS authentication and the initial Lambda deployment have passed in GitHub Actions. New API smoke tests run after the API change is merged and the next manual deployment is triggered. The operator-managed API permissions restrict CI to the exact API ID; the GitHub access stack reads that ID from the Lambda unit's remote state. If AWS reports a missing permission, add only the required scoped permission to Terraform and redeploy the access stack as an operator.
 
 References: [GitHub OIDC with AWS](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws), [AWS Lambda authorization](https://docs.aws.amazon.com/service-authorization/latest/reference/list_lambda.html), and [Terraform S3 backend permissions](https://developer.hashicorp.com/terraform/language/backend/s3).
+
+## Private Backend Settings
+
+After AWS authentication, `scripts/configure_lambda_backend.py` reads only the ALB state object and writes ignored local inputs. No endpoint or network identifiers are printed. Missing/destroyed state configures no backend; denied or incomplete reads fail closed. The manual disconnect checkbox explicitly overrides discovery. Both discovery and disconnect only prepare Terraform inputs; infrastructure changes still require the checked deployment input and saved-plan apply. See the [Lambda guide](lambda-backend.md).

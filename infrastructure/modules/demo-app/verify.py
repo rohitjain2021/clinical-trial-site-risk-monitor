@@ -34,7 +34,8 @@ def main():
         urlopen(Request(base + "/site-assessments", data=b"{}",
                         headers={"Content-Type": "application/json"}), timeout=10)
     except HTTPError as error:
-        assert error.code == 400
+        with error:
+            assert error.code == 400
     else:
         raise AssertionError("Invalid assessment was accepted")
     print("Private health, assessment, cache-control, and invalid-input checks passed.")
