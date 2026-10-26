@@ -1,17 +1,22 @@
 mock_provider "kubernetes" {}
 
 variables {
-  cluster_name          = "example-cluster"
-  risk_service_role_arn = "arn:aws:iam::123456789012:role/clinical-trial-site-risk-monitor-dev-eks-risk-service"
-  cluster_endpoint      = "https://example.invalid"
-  cluster_certificate   = "ZXhhbXBsZQ=="
-  image_uri             = "123456789012.dkr.ecr.us-east-1.amazonaws.com/clinical-trial-site-risk-monitor-dev-risk-service@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-  site_example_json     = "{}"
-  verification_run_id   = "test-run"
+  assessment_notification_topic_arn = "arn:aws:sns:us-east-1:123456789012:clinical-trial-site-risk-monitor-dev-assessments"
+  cluster_name                      = "example-cluster"
+  risk_service_role_arn             = "arn:aws:iam::123456789012:role/clinical-trial-site-risk-monitor-dev-eks-risk-service"
+  cluster_endpoint                  = "https://example.invalid"
+  cluster_certificate               = "ZXhhbXBsZQ=="
+  image_uri                         = "123456789012.dkr.ecr.us-east-1.amazonaws.com/clinical-trial-site-risk-monitor-dev-risk-service@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  site_example_json                 = "{}"
+  verification_run_id               = "test-run"
 }
 
 run "private_hardened_demo" {
   command = plan
+  assert {
+    condition     = one([for env in kubernetes_deployment_v1.risk.spec[0].template[0].spec[0].container[0].env : env if env.name == "ASSESSMENT_SNS_TOPIC_ARN"]).value == var.assessment_notification_topic_arn
+    error_message = "The application must receive only the exact project topic identifier, not the recipient address."
+  }
   assert {
     condition     = kubernetes_service_account_v1.risk.metadata[0].annotations["eks.amazonaws.com/role-arn"] == var.risk_service_role_arn && !kubernetes_service_account_v1.risk.automount_service_account_token && kubernetes_deployment_v1.risk.spec[0].template[0].spec[0].service_account_name == "clinical-trial-risk-service" && one([for env in kubernetes_deployment_v1.risk.spec[0].template[0].spec[0].container[0].env : env if env.name == "BEDROCK_ENABLED"]).value == "true"
     error_message = "Use the dedicated IRSA service account and enable optional Bedrock explanations."

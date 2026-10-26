@@ -1,4 +1,13 @@
 variable "cluster_name" { type = string }
+variable "assessment_notification_topic_arn" {
+  description = "Project assessment notification topic; publisher access is capped by the IRSA boundary."
+  type        = string
+  sensitive   = true
+  validation {
+    condition     = can(regex("^arn:aws:sns:us-east-1:[0-9]{12}:clinical-trial-site-risk-monitor-dev-assessments$", var.assessment_notification_topic_arn))
+    error_message = "Use only the exact project assessment-event topic."
+  }
+}
 variable "risk_service_role_arn" {
   description = "Dedicated IRSA role for Nova Micro; no static credentials are mounted."
   type        = string

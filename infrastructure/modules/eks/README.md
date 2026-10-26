@@ -7,3 +7,5 @@ Use the development Terragrunt unit in `infrastructure/live/dev/eks`. Operator a
 The separate [demo flow](../../../docs/demo.md) applies/destroys this unit only on an explicit manual operation. Its IAM bootstrap supplies mandatory service-role boundaries and a separate workflow access entry. The application is managed by `infrastructure/modules/demo-app`, which must be destroyed before EKS.
 
 The risk-service IRSA role reuses the existing cluster OIDC provider and trusts only its exact application namespace/service account. Its boundary and inline policy allow only `bedrock:InvokeModel` on regional Nova Micro. Workers and CNI receive no model permissions. The operator-managed GitHub IAM bootstrap must supply the new `risk` boundary before role creation. See the [Bedrock guide](../../../docs/bedrock.md).
+
+The risk-service role also has an exact-topic assessment notification policy. Its topic ARN output is passed to the application unit without exposing the subscriber address. The separate operator notification unit owns the SNS topic and subscription. See the [notification guide](../../../docs/notifications.md).

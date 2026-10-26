@@ -57,6 +57,10 @@ variables {
 
 run "restricted_development_cluster" {
   command = apply
+  assert {
+    condition     = length(jsondecode(aws_iam_role_policy.notifications.policy).Statement) == 1 && jsondecode(aws_iam_role_policy.notifications.policy).Statement[0].Action == "sns:Publish" && jsondecode(aws_iam_role_policy.notifications.policy).Statement[0].Resource == "arn:aws:sns:us-east-1:123456789012:clinical-trial-site-risk-monitor-dev-assessments"
+    error_message = "Only the application role may publish to the exact project assessment topic."
+  }
 
   assert {
     condition     = aws_iam_role.risk.permissions_boundary == var.role_boundaries["risk"] && jsondecode(aws_iam_role.risk.assume_role_policy).Statement[0].Action == "sts:AssumeRoleWithWebIdentity" && jsondecode(aws_iam_role.risk.assume_role_policy).Statement[0].Condition.StringEquals["oidc.eks.us-east-1.amazonaws.com/id/EXAMPLE:sub"] == "system:serviceaccount:clinical-trial-site-risk-monitor-demo:clinical-trial-risk-service" && jsondecode(aws_iam_role.risk.assume_role_policy).Statement[0].Condition.StringEquals["oidc.eks.us-east-1.amazonaws.com/id/EXAMPLE:aud"] == "sts.amazonaws.com"

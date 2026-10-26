@@ -11,7 +11,7 @@ COPY requirements.txt ./requirements.txt
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
 # Copy only runtime modules, not local settings, tests, or credentials.
-COPY app.py risk.py explanation.py ./services/risk_service/
+COPY app.py risk.py explanation.py notifications.py ./services/risk_service/
 
 # A numeric user avoids adding user-management packages to the runtime image.
 USER 10001:10001

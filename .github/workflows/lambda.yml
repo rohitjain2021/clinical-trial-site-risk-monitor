@@ -90,7 +90,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for module in infrastructure/modules/lambda infrastructure/modules/github-actions infrastructure/modules/ecr infrastructure/modules/eks infrastructure/modules/demo-app infrastructure/modules/alb infrastructure/modules/streamlit-access infrastructure/bootstrap/state-backend; do
+          for module in infrastructure/modules/lambda infrastructure/modules/github-actions infrastructure/modules/ecr infrastructure/modules/eks infrastructure/modules/demo-app infrastructure/modules/alb infrastructure/modules/streamlit-access infrastructure/modules/notifications infrastructure/bootstrap/state-backend; do
             terraform -chdir="$module" init -backend=false -input=false
             terraform -chdir="$module" validate
             terraform -chdir="$module" test

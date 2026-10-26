@@ -26,6 +26,36 @@ class AppTests(unittest.TestCase):
         self.assertEqual(response.json()["status"], "ok")
         self.assertEqual(response.json()["rules_version"], "prototype-v1")
 
+    @patch("services.risk_service.app.notify_assessment")
+    @patch("services.risk_service.app.explain_risk")
+    def test_notification_only_after_bedrock_attempt(self, explain, notify):
+        """Notify successful or unavailable AI attempts, excluding invalid/health/disabled calls."""
+        for status in ("available", "unavailable"):
+            explain.return_value = {"status": status, "text": "Synthetic summary" if status == "available" else None}
+            notify.reset_mock()
+            self.assertEqual(self.client.post("/site-assessments", json=self.site).status_code, 200)
+            notify.assert_called_once_with("High", status)
+        notify.reset_mock()
+        explain.return_value = None
+        self.client.post("/site-assessments", json=self.site)
+        self.client.get("/health")
+        self.client.post("/site-assessments", json={})
+        notify.assert_not_called()
+
+    @patch.dict("os.environ", {"ASSESSMENT_SNS_TOPIC_ARN": "arn:aws:sns:us-east-1:123456789012:clinical-trial-site-risk-monitor-dev-assessments"})
+    @patch("services.risk_service.notifications.notification_client")
+    @patch("services.risk_service.app.explain_risk")
+    def test_notification_failure_preserves_assessment(self, explain, client):
+        """Keep the actual route successful when its background SNS publisher times out."""
+        from botocore.exceptions import ReadTimeoutError
+        explain.return_value = {"status": "available", "text": "Synthetic summary"}
+        client.return_value.publish.side_effect = ReadTimeoutError(endpoint_url="https://private.example")
+        with self.assertLogs("uvicorn.error", level="WARNING"):
+            response = self.client.post("/site-assessments", json=self.site)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["risk_level"], "High")
+        self.assertEqual(response.json()["explanation"]["status"], "available")
+
     @patch("services.risk_service.app.explain_risk")
     def test_explanation_success_and_failure_preserve_rules(self, explain):
         """Return AI text separately, preserving risk results when the model fails."""
