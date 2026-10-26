@@ -1,6 +1,6 @@
 # GitHub Actions CI/CD
 
-The workflow is defined in [lambda.yml](../.github/workflows/lambda.yml). GitHub Actions authenticates to AWS using OIDC, then runs Terragrunt and Terraform against the development Lambda's shared S3 state. No AWS access-key secrets are needed.
+The workflow is defined in [lambda.yml](../.github/workflows/lambda.yml). GitHub Actions authenticates to AWS using OIDC, then runs Terragrunt and Terraform against the development Lambda's shared S3 state. No AWS access-key secrets are needed by GitHub Actions. The separately scoped Community Cloud UI key is kept in Streamlit Secrets, never Actions secrets or workflow logs.
 
 Deployment identifiers come from encrypted Actions secrets and an ignored local HCL file. CI masks them before planning and scans Git history with Gitleaks. See the [security guide](security.md) for the required secrets and existing-history limitations.
 
@@ -8,7 +8,7 @@ Deployment identifiers come from encrypted Actions secrets and an ignored local 
 
 | Trigger | Checks | AWS actions |
 |---|---|---|
-| Pull request | Python response and risk-service tests, container build and HTTP checks, formatting, Terraform validation, mocked security tests | None; no OIDC permission |
+| Pull request | Python response, risk-service, and Streamlit signing/form tests, container build and HTTP checks, formatting, Terraform validation, mocked security tests | None; no OIDC permission |
 | Push to `main` | Same checks | Authenticate and generate a Lambda plan |
 | Manual run on `main`, `deploy` unchecked | Same checks | Generate a Lambda plan |
 | Manual run on `main`, `deploy` checked | Same checks | Discover ALB settings, plan/apply Lambda, verify signed risk assessments and unsigned denial |
@@ -68,3 +68,7 @@ References: [GitHub OIDC with AWS](https://docs.github.com/en/actions/how-tos/se
 ## Private Backend Settings
 
 After AWS authentication, `scripts/configure_lambda_backend.py` reads only the ALB state object and writes ignored local inputs. No endpoint or network identifiers are printed. Missing/destroyed state configures no backend; denied or incomplete reads fail closed. The manual disconnect checkbox explicitly overrides discovery. Both discovery and disconnect only prepare Terraform inputs; infrastructure changes still require the checked deployment input and saved-plan apply. See the [Lambda guide](lambda-backend.md).
+
+## Streamlit Access
+
+CI installs the pinned UI requirements, checks SigV4 signing and the real form with synthetic credentials, and runs the mocked `streamlit-access` Terraform policy test. It never receives live UI credentials. The separate operator-run unit creates only its dedicated assessment identity and stores its encrypted state separately; it is outside the GitHub deployment role. See the [Streamlit guide](streamlit.md).

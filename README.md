@@ -27,11 +27,11 @@ The application provides an easy way to review trial-site performance and detect
 
 ## Architecture
 
-![Clinical Trial Site Risk Monitor architecture showing GitHub Actions building and testing a Docker image, publishing to ECR, the planned EKS image pull, the application service connections, and Terraform/Terragrunt infrastructure management](docs/images/clinical-trial-site-risk-monitor-architecture.png)
+![Clinical Trial Site Risk Monitor architecture showing signed Streamlit API integration, deployed Lambda, internal ALB, EKS/FastAPI, ECR image delivery, and planned Snowflake and Bedrock connections](docs/images/clinical-trial-site-risk-monitor-architecture.png)
 
 Terragrunt manages environment configuration and orchestrates Terraform, which provisions the AWS infrastructure shown above.
 
-The diagram shows the target architecture. EKS/FastAPI and the internal ALB now run privately using the published ECR image. Lambda now calls the private ALB; hosted Streamlit integration and the remaining data/AI components are still planned.
+The diagram shows the target architecture. EKS/FastAPI and the internal ALB now run privately using the published ECR image. Lambda calls the private ALB. Streamlit supports signed API requests; its hosted connection requires the private Secrets setup described in the [Streamlit guide](docs/streamlit.md). Snowflake and Bedrock remain planned.
 
 ## Development Setup
 
@@ -51,7 +51,7 @@ The development HTTP API provides authenticated `GET /health` and `POST /site-as
 
 ## Things to Do
 
-The authenticated API Gateway ? Lambda ? ALB ? FastAPI path is deployed and verified. The following work remains:
+The authenticated API Gateway -> Lambda -> ALB -> FastAPI path is deployed and verified. The following work remains:
 
 - [x] Document [prototype risk rules](docs/risk-rules.md), classification reasons, and sample cases. Thresholds require review before operational use.
 - [x] Implement and test the standalone prototype risk calculation locally; it is used by FastAPI behind the deployed API.
@@ -70,11 +70,13 @@ The authenticated API Gateway ? Lambda ? ALB ? FastAPI path is deployed and veri
 - [x] Review the EKS plan and provision through Terraform and Terragrunt.
 - [x] Provision and verify the private Application Load Balancer through Terraform/Terragrunt.
 - [x] Connect Lambda to the risk service through the ALB and verify signed High/Medium/Low assessments.
-- [ ] Merge the Lambda integration changes and rerun its GitHub deployment workflow.
+- [x] Merge the Lambda integration changes; the backend is deployed and verified.
 - [ ] Add Snowflake storage for trial-site data and assessment results.
 - [x] Build and verify a simple local Streamlit interface with copy-paste JSON and risk results.
-- [ ] Extend Streamlit for multiple sites and the authenticated deployed API.
-- [ ] Provision Streamlit hosting and its scoped API access through Terraform and Terragrunt.
+- [x] Add signed API requests and safe backend errors to the single-site Streamlit UI.
+- [ ] Save private Community Cloud Secrets and verify the hosted Streamlit form.
+- [ ] Extend Streamlit for multiple sites.
+- [x] Define dedicated, route-scoped Streamlit API access through Terraform and Terragrunt. Hosting uses Streamlit Community Cloud.
 - [ ] Add Amazon Bedrock explanations based on calculated risk results.
 - [ ] Extend CI/CD to deploy the ALB unit and remaining application components.
 - [ ] Add monitoring, alerts, and end-to-end tests for the complete workflow.
@@ -82,9 +84,9 @@ The authenticated API Gateway ? Lambda ? ALB ? FastAPI path is deployed and veri
 
 ## Documentation
 
-### Local Streamlit UI
+### Streamlit UI and API Connection
 
-[Read the Streamlit guide](docs/streamlit.md) for installation, copy-paste sample data, and running the UI locally.
+[Read the Streamlit guide](docs/streamlit.md) for hosted Secrets configuration, scoped AWS access, copy-paste sample data, and local setup.
 
 ### EKS Deployment
 

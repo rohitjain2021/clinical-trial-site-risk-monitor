@@ -1,18 +1,24 @@
-"""Simple local JSON interface for the existing FastAPI risk service."""
+"""Paste one synthetic site record and call local FastAPI or the signed AWS API."""
 
 import json
 from pathlib import Path
+import re
+from http.client import HTTPException
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 import streamlit as st
+import boto3
+from botocore.auth import SigV4Auth
+from botocore.awsrequest import AWSRequest
+from botocore.exceptions import BotoCoreError
 
 API_URL = "http://127.0.0.1:8000/site-assessments"
 SAMPLE_PATH = Path(__file__).resolve().parents[2] / "docs/examples/site-assessment.json"
 
 
-def assess_site(text):
-    """Send one JSON record to local FastAPI, keeping risk rules out of the UI.
+def assess_site(text, config=None):
+    """Send one JSON record, signing cloud calls on the server to keep AWS keys private.
 
     Parse JSON for a friendly syntax error, bound the request size, and use a
     timeout so an unavailable service cannot leave the page waiting indefinitely.
@@ -24,16 +30,66 @@ def assess_site(text):
         raise ValueError("Enter valid JSON. You can copy the sample below.") from None
     if len(payload) > 64 * 1024:
         raise ValueError("Site data must be no larger than 64 KiB.")
-    request = Request(API_URL, data=payload, headers={"Content-Type": "application/json"})
+    config = config or {}
+    url = API_URL
+    headers = {"Content-Type": "application/json"}
+    base_url = config.get("risk_api", {}).get("base_url")
+    if base_url:
+        if not re.fullmatch(r"https://[a-z0-9]+\.execute-api\.us-east-1\.amazonaws\.com/dev", base_url):
+            raise ValueError("The cloud API configuration is invalid. Contact the app owner.")
+        url = base_url + "/site-assessments"
+        try:
+            aws = config.get("aws", {})
+            if aws and (not aws.get("access_key_id") or not aws.get("secret_access_key")):
+                raise ValueError("Cloud API credentials are incomplete. Contact the app owner.")
+            session = boto3.Session(
+                aws_access_key_id=aws.get("access_key_id"),
+                aws_secret_access_key=aws.get("secret_access_key"),
+                aws_session_token=aws.get("session_token"),
+                region_name="us-east-1",
+            )
+            credentials = session.get_credentials()
+            if credentials is None:
+                raise ValueError("Cloud API credentials are missing. Contact the app owner.")
+            signed = AWSRequest(method="POST", url=url, data=payload, headers=headers)
+            SigV4Auth(credentials.get_frozen_credentials(), "execute-api", "us-east-1").add_auth(signed)
+            headers = dict(signed.headers)
+        except BotoCoreError:
+            raise ValueError("Cloud API credentials are unavailable. Contact the app owner.") from None
+    request = Request(url, data=payload, headers=headers)
     try:
         with urlopen(request, timeout=10) as response:
-            return json.load(response)
+            raw = response.read(65537)
+            if len(raw) > 65536:
+                raise ValueError
+            result = json.loads(raw)
+            if (not isinstance(result, dict) or result.get("risk_level") not in ("Low", "Medium", "High")
+                    or not isinstance(result.get("site_id"), str)
+                    or not isinstance(result.get("rules_version"), str)
+                    or not isinstance(result.get("reasons"), list)
+                    or not result["reasons"]
+                    or not all(isinstance(reason, str) for reason in result["reasons"])):
+                raise ValueError
+            return result
     except HTTPError as error:
-        if error.code == 400:
-            raise ValueError(json.load(error).get("detail", "Check the site fields against the sample.")) from None
+        with error:
+            if error.code == 400:
+                raise ValueError("Check the site fields against the sample.") from None
+            if error.code in (401, 403):
+                raise ValueError("Cloud API access was denied. Ask the app owner to check credentials and permissions.") from None
         raise ValueError("The risk service could not assess this record. Please try again.") from None
-    except (URLError, TimeoutError):
-        raise ValueError("The local risk service is unavailable. Start FastAPI, then try again.") from None
+    except (URLError, TimeoutError, OSError):
+        raise ValueError("The risk service is unavailable. Please try again later.") from None
+    except (ValueError, UnicodeError, HTTPException):
+        raise ValueError("The risk service returned an invalid response. Please try again.") from None
+
+
+def read_config():
+    """Read server-side Streamlit secrets; no file means the existing local demo mode."""
+    try:
+        return st.secrets.to_dict()
+    except FileNotFoundError:
+        return {}
 
 
 def main():
@@ -45,6 +101,8 @@ def main():
     st.set_page_config(page_title="Clinical Trial Site Risk Monitor", page_icon="🏥")
     st.title("Clinical Trial Site Risk Monitor")
     st.caption("Paste a site record to review operational risk. Use synthetic data only.")
+    config = read_config()
+    st.caption("Backend: AWS API" if config.get("risk_api", {}).get("base_url") else "Backend: local FastAPI")
     sample = SAMPLE_PATH.read_text(encoding="utf-8")
 
     with st.form("site_assessment"):
@@ -53,7 +111,8 @@ def main():
 
     if submitted:
         try:
-            result = assess_site(text)
+            with st.spinner("Assessing site..."):
+                result = assess_site(text, config)
         except ValueError as error:
             st.error(str(error))
         else:
