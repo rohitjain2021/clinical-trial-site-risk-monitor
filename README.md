@@ -27,9 +27,11 @@ The application provides an easy way to review trial-site performance and detect
 
 ## Architecture
 
-![Clinical Trial Site Risk Monitor architecture showing the Streamlit UI, AWS services, Snowflake, and infrastructure management with Terraform and Terragrunt](docs/images/clinical-trial-site-risk-monitor-architecture.png)
+![Clinical Trial Site Risk Monitor architecture showing GitHub Actions building and testing a Docker image, publishing to ECR, the planned EKS image pull, the application service connections, and Terraform/Terragrunt infrastructure management](docs/images/clinical-trial-site-risk-monitor-architecture.png)
 
 Terragrunt manages environment configuration and orchestrates Terraform, which provisions the AWS infrastructure shown above.
+
+Components marked **Planned** have not been deployed; the FastAPI image is tested and published in ECR.
 
 ## Development Setup
 
@@ -54,7 +56,7 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [x] Add container build and HTTP checks to GitHub Actions; each run reports its result.
 - [x] Provision the private [ECR risk-service repository](docs/ecr.md) through Terraform and Terragrunt.
 - [x] Configure scoped image publishing to ECR through GitHub Actions (manual run on `main`).
-- [ ] Run the publishing workflow after merge and verify the first commit-tagged image in ECR.
+- [x] Run the publishing workflow after merge and verify the first commit-tagged image in ECR.
 - [ ] Provision EKS, networking, and load balancing through Terraform and Terragrunt.
 - [ ] Deploy the risk service and connect Lambda to it.
 - [ ] Add Snowflake storage for trial-site data and assessment results.
@@ -63,7 +65,7 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [ ] Add Amazon Bedrock explanations based on calculated risk results.
 - [ ] Extend CI/CD to deploy and verify the remaining application components.
 - [ ] Add monitoring, alerts, and end-to-end tests for the complete workflow.
-- [ ] Update the architecture diagram to show CI/CD, S3 state, CloudWatch logs, API security, and implemented versus planned components.
+- [x] Update the architecture diagram with GitHub Actions, Docker, ECR, service connections, and implemented versus planned components.
 
 ## Documentation
 

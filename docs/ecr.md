@@ -33,7 +33,7 @@ Review the plan before applying. Expect one private repository to be added. Keep
 
 Deployed and verified on October 25, 2026. Terraform validation and both mocked tests passed. The reviewed live plan added exactly one repository, and the saved plan was applied through Terragrunt. AWS read-back confirmed the repository name, immutable tags, encryption, scan-on-push, and all project tags. A post-deployment plan reported no changes. The private saved plan was removed afterward.
 
-The GitHub Actions module-check loop now includes ECR; that workflow change has been validated locally but has not run on GitHub yet.
+The GitHub Actions module-check loop includes ECR and has passed on GitHub, alongside container and application tests.
 
 ## Publish Through GitHub Actions
 
@@ -52,6 +52,8 @@ Policy `publish-dev-risk-service-image`, managed by Terraform in `infrastructure
 
 The workflow uses the existing encrypted `PROJECT_AWS_ACCOUNT_ID` secret. Registry URLs and account IDs are constructed privately and masked; registry passwords are piped to Docker through standard input. No new AWS access keys or GitHub secrets are needed.
 
-**Publishing validation:** workflow syntax, mocked IAM security tests, and local shell checks for first publish, existing tag, denied access, failed push, and credential cleanup have passed. The reviewed Terraform plan added only `publish-dev-risk-service-image`; it was applied through Terragrunt, verified by AWS read-back, and followed by a no-change plan on October 25, 2026. The private saved plan was removed. A first image push is still pending merge and a manual run on `main`.
+**Publishing validation:** workflow syntax, mocked IAM security tests, and local shell checks for first publish, existing tag, denied access, failed push, and credential cleanup have passed. The reviewed Terraform plan added only `publish-dev-risk-service-image`; it was applied through Terragrunt, verified by AWS read-back, and followed by a no-change plan on October 25, 2026. The private saved plan was removed.
+
+The first [publishing run](https://github.com/rohitjain2021/clinical-trial-site-risk-monitor/actions/runs/40248817341) succeeded on October 25, 2026 for main commit `817b71ca41138e6ffe07d68aeffe67ee6705c817`, with `publish_image=true` and `deploy=false`. All CI checks passed, the publishing job verified the tag and digest, and temporary credential cleanup succeeded. Independent AWS read-back confirmed the commit-tagged image exists. Lambda apply was skipped. This verifies publication, not vulnerability clearance or an EKS deployment; review ECR scan findings before deploying the image.
 
 References: [ECR image tag immutability](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-tag-mutability.html), [basic image scanning](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-scanning-basic.html).
