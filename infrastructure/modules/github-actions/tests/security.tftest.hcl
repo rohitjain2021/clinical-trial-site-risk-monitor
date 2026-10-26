@@ -1,4 +1,10 @@
 mock_provider "aws" {
+  mock_data "aws_vpc" {
+    defaults = { id = "vpc-example" }
+  }
+  mock_data "aws_subnets" {
+    defaults = { ids = ["subnet-example-a", "subnet-example-b"] }
+  }
   mock_data "aws_iam_policy" {
     defaults = { policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"ec2:DescribeInstances\"],\"Resource\":\"*\"}]}" }
   }
@@ -26,6 +32,25 @@ variables {
 
 run "scoped_github_access" {
   command = apply
+
+  assert {
+    condition     = one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ReadEksNodegroupServiceRole"]).Action == "iam:GetRole" && one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ReadEksNodegroupServiceRole"]).Resource == "arn:aws:iam::123456789012:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
+    error_message = "Worker creation may read only the exact EKS node-group service role, without granting service-role modification."
+  }
+
+  assert {
+    condition     = contains(one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ManageDemoRoles"]).Action, "iam:ListInstanceProfilesForRole") && toset(one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ManageDemoRoles"]).Resource) == toset(values(local.demo_role_arns))
+    error_message = "Terraform role cleanup must be able to inspect profiles only for the three demo service roles."
+  }
+
+  assert {
+    condition     = length(aws_iam_policy.demo_node_launch.policy) < 6144 && jsondecode(aws_iam_policy.demo_node_launch.policy).Statement[1].Condition.StringEquals["ec2:InstanceType"] == "t3.medium" && jsondecode(aws_iam_policy.demo_node_launch.policy).Statement[2].Condition.StringEquals["aws:ResourceTag/Name"] == "${local.demo_cluster_name}-nodes"
+    error_message = "Node launches must stay small, use the named project template, and fit IAM policy limits."
+  }
+  assert {
+    condition     = contains(jsondecode(aws_iam_policy.demo_node_launch.policy).Statement[0].Resource, "arn:aws:ec2:us-east-1:123456789012:subnet/subnet-example-a") && !contains(jsondecode(aws_iam_policy.demo_node_launch.policy).Statement[0].Resource, "arn:aws:ec2:us-east-1:123456789012:subnet/*") && jsondecode(aws_iam_policy.demo_node_launch.policy).Statement[3].Condition.StringEquals["ec2:CreateAction"] == "RunInstances"
+    error_message = "Launches must use the selected existing subnets and tag resources only during creation."
+  }
 
   assert {
     condition     = one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "CreateTaggedDemoCluster"]).Action == "eks:CreateCluster" && one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "CreateTaggedDemoCluster"]).Condition.StringEquals["aws:RequestTag/Name"] == local.demo_cluster_name && one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "CreateTaggedDemoCluster"]).Condition.StringEquals["aws:RequestedRegion"] == local.region

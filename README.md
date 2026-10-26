@@ -41,7 +41,7 @@ See the [development setup guide](docs/setup.md) for installation and verificati
 
 GitHub Actions runs checks on pull requests and produces a development deployment plan on `main`. An explicit manual workflow run deploys the Lambda through Terragrunt and Terraform, using OIDC authentication and S3 state locking. See the [CI/CD guide](docs/cicd.md) for workflow behavior and AWS permissions.
 
-The manual [Start/Stop demo flow](docs/demo.md) creates, verifies, and removes a disposable EKS/FastAPI environment. Encrypted operator settings are configured; its first live cycle is pending merge and supervised execution. No EKS cluster is running.
+The manual [EKS deployment workflow](docs/deployment.md) plans by default and provisions EKS/FastAPI when deployment is explicitly selected. Resources remain running; there is no Start/Stop lifecycle or automatic destruction. Live deployment verification is pending.
 
 ## API
 
@@ -60,9 +60,9 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [x] Configure scoped image publishing to ECR through GitHub Actions (manual run on `main`).
 - [x] Run the publishing workflow after merge and verify the first commit-tagged image in ECR.
 - [x] Prepare and validate the [EKS Terraform plan and running costs](docs/eks.md), reusing the existing default VPC and subnets.
-- [x] Implement manual Start/Stop demo workflow with scoped Terraform deployment and cleanup.
-- [x] Configure encrypted demo operator settings in GitHub Actions.
-- [ ] Merge and verify a supervised Start/Stop cycle.
+- [x] Implement a basic manual EKS/FastAPI plan-and-deploy workflow.
+- [x] Configure encrypted operator settings in GitHub Actions.
+- [ ] Merge and verify EKS worker provisioning and FastAPI deployment.
 - [ ] Review and approve the EKS plan, then provision through Terraform and Terragrunt.
 - [ ] Add application load balancing through infrastructure as code.
 - [ ] Deploy the risk service and connect Lambda to it.
@@ -81,9 +81,9 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 
 [Read the Streamlit guide](docs/streamlit.md) for installation, copy-paste sample data, and running the UI locally.
 
-### Start/Stop Demo
+### EKS Deployment
 
-[Read the demo guide](docs/demo.md) for session setup, the manual workflow, private FastAPI access, cleanup, and cost boundaries.
+[Read the deployment guide](docs/deployment.md) for the manual plan/apply workflow, current scope, and failure recovery.
 
 ### EKS Planning
 

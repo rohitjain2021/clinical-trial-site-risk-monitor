@@ -21,6 +21,6 @@ variable "site_example_json" {
   type        = string
 }
 variable "verification_run_id" {
-  description = "Workflow run identifier forces a fresh verification job on every Start."
+  description = "Workflow run identifier forces a fresh verification job on every deployment."
   type        = string
 }

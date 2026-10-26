@@ -78,7 +78,7 @@ resource "aws_iam_role_policy" "demo" {
       { Sid = "InspectPublishedImage", Effect = "Allow", Action = "ecr:DescribeImages", Resource = local.ecr_repository_arn },
       {
         Sid      = "DiscoverRegionalInputs", Effect = "Allow"
-        Action   = ["ec2:DescribeVpcs", "ec2:DescribeVpcAttribute", "ec2:DescribeSubnets", "ec2:DescribeInstances", "ec2:DescribeVolumes", "ec2:DescribeLaunchTemplates", "ec2:DescribeLaunchTemplateVersions", "eks:DescribeAddonVersions", "logs:DescribeLogGroups"]
+        Action   = ["ec2:DescribeVpcs", "ec2:DescribeVpcAttribute", "ec2:DescribeRouteTables", "ec2:DescribeSubnets", "ec2:DescribeInstances", "ec2:DescribeVolumes", "ec2:DescribeLaunchTemplates", "ec2:DescribeLaunchTemplateVersions", "eks:DescribeAddonVersions", "logs:DescribeLogGroups"]
         Resource = "*", Condition = { StringEquals = { "aws:RequestedRegion" = local.region } }
       },
       {
@@ -114,8 +114,13 @@ resource "aws_iam_role_policy" "demo" {
         Resource = local.demo_eks_resources
       },
       {
+        # EKS validates its existing node-group service role during worker creation.
+        Sid      = "ReadEksNodegroupServiceRole", Effect = "Allow", Action = "iam:GetRole"
+        Resource = "arn:aws:iam::${local.account_id}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
+      },
+      {
         Sid      = "ManageDemoRoles", Effect = "Allow"
-        Action   = ["iam:GetRole", "iam:DeleteRole", "iam:UpdateAssumeRolePolicy", "iam:TagRole", "iam:UntagRole", "iam:ListRolePolicies", "iam:ListAttachedRolePolicies", "iam:GetRolePolicy", "iam:PutRolePolicy", "iam:DeleteRolePolicy"]
+        Action   = ["iam:GetRole", "iam:DeleteRole", "iam:UpdateAssumeRolePolicy", "iam:TagRole", "iam:UntagRole", "iam:ListRolePolicies", "iam:ListAttachedRolePolicies", "iam:ListInstanceProfilesForRole", "iam:GetRolePolicy", "iam:PutRolePolicy", "iam:DeleteRolePolicy"]
         Resource = values(local.demo_role_arns)
       },
       {
