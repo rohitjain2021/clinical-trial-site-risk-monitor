@@ -78,4 +78,4 @@ docker rm clinical-trial-risk-local
 
 These commands stop and remove only the named development container. Do not run broad Docker cleanup commands against unrelated containers or images.
 
-No ECR push, EKS provisioning, AWS infrastructure change, or Lambda integration is part of this step.
+The container test job does not push an image or change AWS infrastructure. A separate manual [ECR publishing job](ecr.md#publish-through-github-actions) rebuilds and tests its own image before uploading it. EKS provisioning and Lambda integration remain separate steps.

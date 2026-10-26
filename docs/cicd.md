@@ -12,12 +12,15 @@ Deployment identifiers come from encrypted Actions secrets and an ignored local 
 | Push to `main` | Same checks | Authenticate and generate a Lambda plan |
 | Manual run on `main`, `deploy` unchecked | Same checks | Generate a Lambda plan |
 | Manual run on `main`, `deploy` checked | Same checks | Plan, apply, invoke Lambda, verify signed API requests and unsigned denial |
+| Manual run on `main`, `publish_image` checked | Same checks, then rebuild and test the image to publish | Publish a commit-tagged image to private ECR; Lambda apply still requires `deploy` |
 
 The plan appears in masked run logs; raw plan output is not copied to the job summary. Pushes never apply infrastructure changes. To deploy, first review a main-branch plan, then open **Actions → Lambda CI and dev deployment → Run workflow**, select `main`, and check `deploy`. This is an explicit deployment approval by a repository maintainer, not a GitHub Environment required-reviewer gate. The manual run creates a fresh plan for the selected commit and applies that plan in the same job; it does not reuse an earlier run's plan. Add a protected environment and matching OIDC trust through infrastructure as code if separate reviewer approval is later required.
 
 The AWS job is limited to `main`, uses a repository-specific concurrency group, and does not cancel a running deployment. S3 locking also serializes Terraform state operations. Terraform manages Lambda deployment; the AWS CLI invocation afterward is a functional check, not infrastructure creation.
 
 The separate `container` job builds the FastAPI Docker image and runs [scripts/check_container.py](../scripts/check_container.py). It checks real HTTP responses and the restricted runtime, then removes its temporary container. It needs no AWS credentials and does not publish an image. The `dev` job requires both `checks` and `container` to pass. See the [container guide](container.md) for local commands and expected responses.
+
+The `publish-image` job also requires both checks, runs only on manual `main` runs with `publish_image` enabled, and obtains OIDC credentials after its own image build and HTTP checks. It publishes the full commit SHA as an immutable ECR tag, verifies that ECR returns the tag and digest, and removes temporary Docker credentials even after failure. An existing commit tag is retained on reruns. This publishes an image without deploying a running service. See the [ECR guide](ecr.md) for activation and verification steps.
 
 Application Python is pinned to 3.13 in CI setup and the container image to match Lambda. The container smoke-test host uses the runner's `python3` with only standard-library modules. Terraform is 1.16.6 and Terragrunt is 1.1.6. All jobs use `ubuntu-24.04` to avoid automatic runner OS migrations. Third-party actions are pinned to commit SHAs, with checkout, Python setup, and Terraform setup using Node 24 runtimes. Terragrunt's Linux download is verified against the release checksum file. The shared setup steps are in [.github/actions/setup-tools/action.yml](../.github/actions/setup-tools/action.yml).
 
@@ -28,6 +31,7 @@ The [GitHub access Terraform module](../infrastructure/modules/github-actions/ma
 - GitHub's OIDC provider with audience `sts.amazonaws.com`.
 - Role `clinical-trial-site-risk-monitor-dev-github-deploy`, trusted only for this repository's `main` branch. Exact legacy and immutable-ID subject formats are accepted; forks, pull-request subjects, feature branches, and environment subjects are not.
 - An inline deployment policy scoped to the development Lambda, its execution role, log group, state key, and lock key.
+- Inline policy `publish-dev-risk-service-image`, permitting image uploads and inspection on the private risk-service ECR repository, plus regional ECR authentication. It grants no repository administration or image deletion.
 - A separate Lambda execution-role permissions boundary that permits only stream creation and event writes in the function's own log group.
 
 The deployment role cannot edit its own trust or permissions, change the boundary policy, remove the Lambda boundary, manage the state bucket, or access the GitHub-access stack's state object. Creating or setting the execution role boundary requires the exact pre-provisioned boundary ARN. Passing that role is allowed only to the Lambda service. `logs:DescribeLogGroups` requires a resource wildcard and is restricted to `us-east-1`; the remaining resource permissions are scoped to the project's resources. `s3:ListBucket` permits listing this state bucket; state object reads/writes are limited to Lambda's key and lock.

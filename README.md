@@ -52,6 +52,9 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [x] Build and test the [FastAPI risk service locally](docs/risk-service.md) using representative site data. It is not deployed or connected to Lambda yet.
 - [x] Build and test the [FastAPI container locally](docs/container.md).
 - [x] Add container build and HTTP checks to GitHub Actions; each run reports its result.
+- [x] Provision the private [ECR risk-service repository](docs/ecr.md) through Terraform and Terragrunt.
+- [x] Configure scoped image publishing to ECR through GitHub Actions (manual run on `main`).
+- [ ] Run the publishing workflow after merge and verify the first commit-tagged image in ECR.
 - [ ] Provision EKS, networking, and load balancing through Terraform and Terragrunt.
 - [ ] Deploy the risk service and connect Lambda to it.
 - [ ] Add Snowflake storage for trial-site data and assessment results.
@@ -63,6 +66,10 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [ ] Update the architecture diagram to show CI/CD, S3 state, CloudWatch logs, API security, and implemented versus planned components.
 
 ## Documentation
+
+### Container Registry
+
+[Read the ECR guide](docs/ecr.md) for the repository name, security settings, Terraform/Terragrunt commands, and deployment status.
 
 ### Local Container
 
