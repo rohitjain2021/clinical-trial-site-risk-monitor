@@ -117,7 +117,7 @@ API Gateway exposes HTTPS routes and connects requests to Lambda. We selected th
 
 ## Why and how we use it
 
-It provides an authenticated endpoint for the future Streamlit server without exposing a Lambda function URL. Both routes require AWS IAM authorization. The development stage has rate/burst throttling and access logs.
+It provides an authenticated endpoint for the Streamlit server without exposing a Lambda function URL. Both routes require AWS IAM authorization. The development stage has rate/burst throttling and access logs.
 
 An HTTP API still uses HTTPS. AWS enforces the `TLS_1_2` policy, which supports TLS 1.2 and 1.3. AWS's separate REST API product offers additional capabilities; choosing HTTP API did not remove TLS.
 
@@ -147,7 +147,7 @@ We separate responsibilities rather than sharing one powerful role:
 - The Lambda execution role writes streams/events only in its own log group.
 - The GitHub deployment role manages the named development resources and their state.
 - The Lambda boundary prevents CI from granting the function permissions beyond its approved logging access.
-- A separate caller role for Streamlit is planned; the UI should not use the deployment role.
+- Community Cloud uses a dedicated Terraform-managed IAM user and matching permissions boundary that permit only this API assessment route. The UI does not use the deployment role; credentials stay in server-side Streamlit Secrets.
 
 ## Small example
 
@@ -190,7 +190,7 @@ Signature Version 4, or SigV4, signs an AWS request using credentials. AWS verif
 
 ## Why and how we use it
 
-Our API routes use `AWS_IAM`, so an HTTPS request alone is insufficient. The workflow signs API smoke tests with its temporary deployment credentials. A future Streamlit server will sign requests using its own role.
+Our API routes use `AWS_IAM`, so an HTTPS request alone is insufficient. The workflow signs API smoke tests with its temporary deployment credentials. The Streamlit server now signs requests using its dedicated API-only identity. Saving the private hosted Secrets configuration activates that connection.
 
 ## Small example
 
@@ -330,15 +330,15 @@ Streamlit is a Python framework for interactive data applications.
 
 ## Why and how we plan to use it
 
-`services/streamlit_ui/app.py` provides a simple JSON text box prefilled with synthetic site data, an assessment button, and a readable risk level and reasons. It calls local FastAPI so classification and field validation stay in the existing service. Streamlit `1.66.1` is isolated in the UI's own requirements file and virtual environment. Its future hosted server will authenticate to API Gateway using a dedicated role; that integration is not implemented yet. See the [local Streamlit guide](streamlit.md).
+`services/streamlit_ui/app.py` provides a simple JSON text box prefilled with synthetic site data, an assessment button, and a readable risk level and reasons. It calls authenticated API Gateway when private cloud settings are present, or local FastAPI in local demo mode. Classification stays in FastAPI. Streamlit `1.66.1` and Boto3 `1.43.118` are pinned in the UI requirements. Boto3 supplies credentials and Botocore signs the exact POST body on the server; keys are never sent to the browser. The dedicated assessment-only identity is provisioned through Terraform. See the [Streamlit integration guide](streamlit.md).
 
 ## Small example
 
 ```text
-User pastes JSON -> Streamlit calls local FastAPI -> risk level and contributing reasons
+User pastes JSON -> Streamlit signs API Gateway request -> Lambda -> private ALB -> FastAPI -> risk result
 ```
 
-That is a planned flow. The current API accepts one JSON record, not CSV/Excel files or batches. Files in the separate Equipment_SME project are not this project's Streamlit implementation.
+The cloud client and real Streamlit form have passed live AWS verification; hosted Secrets setup remains necessary. The current API accepts one JSON record, not CSV/Excel files or batches. Files in the separate Equipment_SME project are not this project's Streamlit implementation.
 
 [Official Streamlit documentation](https://docs.streamlit.io/).
 
