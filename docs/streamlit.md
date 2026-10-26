@@ -1,6 +1,6 @@
 # Streamlit Interface
 
-The navy-and-teal clinical dashboard supports two ways to review one site:
+The dark-blue-and-orange clinical dashboard supports two ways to review one site:
 
 - **Paste a report:** copy meaningful labelled lines, with no JSON syntax.
 - **Fill in fields:** enter site details and numeric counts in a form.
@@ -28,7 +28,7 @@ The examples are **Delayed enrollment** (High), **Some operational concerns** (M
 
 ## Visual Design
 
-The selected design uses navy headers, teal actions, a light background, white panels, colored risk badges, metric cards, an enrollment progress bar, and a separate AI explanation panel. Layout and interactive controls remain native Streamlit. Theme settings are in `.streamlit/config.toml`; local styling is in `services/streamlit_ui/style.css`. CSS introduces no extra packages or remote assets. All site names and reason text are escaped before custom HTML rendering; model output is displayed as plain text.
+The selected design uses dark blue headers and headings, orange actions and highlights, white panels on a light gray background, green Low-risk indicators, colored risk badges, metric cards, an enrollment progress bar, and a separate AI explanation panel. There is no sidebar: site input and assessment results fill the main workspace, with optional connection details below. The AI explanation box follows the calculated rating: red for High, yellow for Medium, and green for Low. These are status colors; the page theme uses dark blue and orange. Layout and interactive controls remain native Streamlit. Theme settings are in `.streamlit/config.toml`; local styling is in `services/streamlit_ui/style.css`. CSS introduces no extra packages or remote assets. All site names and reason text are escaped before custom HTML rendering; model output is displayed as plain text.
 
 These are frontend changes only. The API contract, server-side SigV4 signing, secret handling, deterministic rules, and model-failure fallback stay in place. No new AWS infrastructure is provisioned.
 

@@ -215,7 +215,8 @@ def show_result(result, site):
     st.caption("Rule-based assessment · " + result["rules_version"])
     explanation = result.get("explanation")
     if isinstance(explanation, dict):
-        with st.container(border=True, key="explanation"):
+        # Color the summary by the backend's rating, including when AI is unavailable.
+        with st.container(border=True, key=f"explanation_{level.lower()}"):
             st.subheader("AI explanation")
             if explanation.get("status") == "available" and isinstance(explanation.get("text"), str):
                 st.text(explanation["text"])
@@ -233,18 +234,6 @@ def main():
     st.set_page_config(page_title="Clinical Trial Site Risk Monitor", page_icon="🏥", layout="wide")
     st.html("<style>" + Path(__file__).with_name("style.css").read_text(encoding="utf-8") + "</style>")
     config = read_config()
-    with st.sidebar:
-        st.html('<div class="sidebar-brand"><span class="brand-monogram">CT</span>'
-                '<span class="brand-name">Clinical Trial<br>Site Risk Monitor</span></div>'
-                '<div class="workspace-nav">Site assessment</div>')
-        st.caption("A SIMPLE SITE REVIEW")
-        st.markdown("**1. Add site details**\n\nPaste a report or fill in the fields.\n\n"
-                    "**2. Run an assessment**\n\nReview the operational rating and reasons.\n\n"
-                    "**3. Read the explanation**\n\nCompare the AI summary with the rule-based result.")
-        st.divider()
-        st.caption("Development prototype. Use synthetic site data only.")
-        with st.expander("Connection details"):
-            st.caption("Backend: AWS API" if config.get("risk_api", {}).get("base_url") else "Backend: local FastAPI")
     with st.container(key="workspace"):
         st.html('<div class="workspace-hero"><p class="eyebrow">Clinical operations workspace</p>'
                 '<h1>Clinical Trial Site Risk Monitor</h1>'
@@ -283,8 +272,11 @@ def main():
                 first, second = st.columns(2)
                 first.metric("Enrollment", "—", border=True)
                 second.metric("Schedule delay", "—", border=True)
-        st.caption("Prototype operational rules. Review thresholds before real-world use. "
+        st.caption("Development prototype. Use synthetic site data only. "
+                   "Review thresholds before real-world use. "
                    "This tool does not assess patient safety or treatment risk.")
+        with st.expander("Connection details"):
+            st.caption("Backend: AWS API" if config.get("risk_api", {}).get("base_url") else "Backend: local FastAPI")
 
 
 if __name__ == "__main__":
