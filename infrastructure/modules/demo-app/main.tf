@@ -95,15 +95,16 @@ resource "kubernetes_service_v1" "risk" {
   }
   spec {
     selector = local.labels
-    type     = "ClusterIP"
+    type     = "NodePort"
     port {
       port        = 8000
       target_port = 8000
+      node_port   = 30800
     }
   }
 }
 
-# A real in-cluster HTTP check gates Start success, without exposing a public API.
+# A real in-cluster HTTP check gates deployment success, without exposing a public API.
 resource "kubernetes_job_v1" "verify" {
   metadata {
     name      = "risk-service-verification"
@@ -135,38 +136,7 @@ resource "kubernetes_job_v1" "verify" {
             name  = "SITE_JSON"
             value = var.site_example_json
           }
-          command = ["python", "-c", <<-PY
-            # Exercise the published image over the Kubernetes Service using synthetic data.
-            import json
-            import os
-            import time
-            from urllib.request import Request, urlopen
-            from urllib.error import HTTPError, URLError
-            base = "http://clinical-trial-risk-service:8000"
-            # Service endpoint routing may briefly lag the Deployment's readiness.
-            for attempt in range(12):
-                try:
-                    with urlopen(base + "/health", timeout=3) as response:
-                        assert response.status == 200 and json.load(response)["status"] == "ok"
-                    break
-                except (URLError, TimeoutError):
-                    if attempt == 11:
-                        raise
-                    time.sleep(2)
-            request = Request(base + "/site-assessments", data=os.environ["SITE_JSON"].encode(), headers={"Content-Type": "application/json"})
-            with urlopen(request, timeout=10) as response:
-                result = json.load(response)
-                assert response.status == 200 and result["risk_level"] == "High" and len(result["reasons"]) == 5
-                assert response.headers["Cache-Control"] == "no-store"
-            try:
-                urlopen(Request(base + "/site-assessments", data=b"{}", headers={"Content-Type": "application/json"}), timeout=10)
-            except HTTPError as error:
-                assert error.code == 400
-            else:
-                raise AssertionError("Invalid assessment was accepted")
-            print("In-cluster health, assessment, and invalid-input checks passed.")
-          PY
-          ]
+          command = ["python", "-c", file("${path.module}/verify.py")]
           security_context {
             allow_privilege_escalation = false
             read_only_root_filesystem  = true

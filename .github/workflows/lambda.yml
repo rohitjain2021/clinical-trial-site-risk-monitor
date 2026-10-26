@@ -63,7 +63,7 @@ jobs:
           python -m pip install -r services/risk_service/requirements-dev.txt
           python -m unittest discover -s services/risk_service -p 'test_*.py' -v
       - name: Test EKS deployment safety
-        run: python -m unittest scripts.test_deploy_eks -v
+        run: python -m unittest scripts.test_deploy_eks scripts.test_verify_service -v
       - name: Check Terraform and Terragrunt formatting
         shell: bash
         run: |
@@ -81,7 +81,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for module in infrastructure/modules/lambda infrastructure/modules/github-actions infrastructure/modules/ecr infrastructure/modules/eks infrastructure/modules/demo-app infrastructure/bootstrap/state-backend; do
+          for module in infrastructure/modules/lambda infrastructure/modules/github-actions infrastructure/modules/ecr infrastructure/modules/eks infrastructure/modules/demo-app infrastructure/modules/alb infrastructure/bootstrap/state-backend; do
             terraform -chdir="$module" init -backend=false -input=false
             terraform -chdir="$module" validate
             terraform -chdir="$module" test

@@ -300,7 +300,7 @@ The Lambda numbers above are one observed warm test, not a performance guarantee
 
 # FastAPI
 
-**Status: implemented and tested locally; not deployed.**
+**Status: deployed privately on EKS and verified through the internal ALB; Lambda integration remains pending.**
 
 ## What it is and what it does
 
@@ -308,7 +308,7 @@ FastAPI is a Python framework for building APIs, with typed request models and g
 
 ## Why and how we plan to use it
 
-It hosts the risk-calculation service separately from Lambda. `services/risk_service/app.py` exposes health and assessment routes and reuses the prototype calculator. The app is tested locally with representative inputs. Lambda integration and deployment through the planned load balancer remain future work. See the [local service guide](risk-service.md).
+It hosts the risk-calculation service separately from Lambda. `services/risk_service/app.py` exposes health and assessment routes and reuses the prototype calculator. The app is tested locally and in EKS. The internal ALB now reaches it through the worker NodePort; Lambda integration remains future work. See the [local service guide](risk-service.md).
 
 ## Small example
 
@@ -344,7 +344,7 @@ That is a planned flow. The current API accepts one JSON record, not CSV/Excel f
 
 # Docker and Container Images
 
-**Status: image built and tested locally; registry publishing and EKS deployment remain planned.**
+**Status: image built and tested, published to ECR, and deployed on EKS.**
 
 ## What it is and what it does
 
@@ -366,7 +366,7 @@ Our current Lambda uses a ZIP package, not a container image. Choosing container
 
 # Amazon Elastic Container Registry (ECR)
 
-**Status: private development repository provisioned; the first commit-tagged FastAPI image was published and verified through GitHub Actions. EKS deployment remains planned.**
+**Status: private repository provisioned; the published commit-tagged image is running on EKS.**
 
 ## What it is and what it does
 
@@ -386,7 +386,7 @@ The repository is named `clinical-trial-site-risk-monitor-dev-risk-service`. Tag
 
 # Kubernetes
 
-**Status: planned; no cluster workloads are deployed.**
+**Status: one FastAPI replica, a NodePort Service, and verification jobs are deployed through Terraform.**
 
 ## What it is and what it does
 
@@ -394,7 +394,7 @@ Kubernetes manages containerized workloads. A Deployment describes application r
 
 ## Why and how we plan to use it
 
-Our target architecture runs FastAPI replicas with health checks and controlled updates. Kubernetes will maintain the desired replicas and replace failed pods. It will not determine clinical risk; that remains Python application logic.
+Our target architecture runs FastAPI replicas with health checks and controlled updates. Kubernetes maintains the desired replicas and replaces failed pods. It will not determine clinical risk; that remains Python application logic.
 
 ## Small example
 
@@ -403,13 +403,13 @@ Desired replicas: 3
 One FastAPI pod fails -> Kubernetes creates a replacement
 ```
 
-Three replicas are illustrative, not an existing deployment or a finalized capacity decision. Workload configuration must be versioned and managed as code.
+Three replicas are illustrative; the development deployment currently uses one. Terraform versions and manages the workload configuration.
 
 [Official Kubernetes concepts](https://kubernetes.io/docs/concepts/).
 
 # Amazon Elastic Kubernetes Service (EKS)
 
-**Status: planned; no EKS infrastructure is provisioned.**
+**Status: development cluster and one Spot worker provisioned through Terraform/Terragrunt.**
 
 ## What it is and what it does
 
@@ -417,7 +417,7 @@ EKS is AWS's managed Kubernetes service. It provides the cluster platform on whi
 
 ## Why and how we plan to use it
 
-Our architecture selects Kubernetes on AWS for hosting the risk service. Terraform/Terragrunt will define cluster infrastructure, compute, networking, and permissions. Workload deployment and CI integration still need design and implementation.
+Our architecture selects Kubernetes on AWS for hosting the risk service. Terraform/Terragrunt define cluster infrastructure, compute, networking, and permissions. The manual GitHub workflow deploys and verifies the EKS workload; ALB provisioning is currently a separate operator unit.
 
 ## Small example
 
@@ -425,13 +425,13 @@ Our architecture selects Kubernetes on AWS for hosting the risk service. Terrafo
 EKS cluster -> Kubernetes Deployment -> FastAPI pods
 ```
 
-Kubernetes is the orchestration system; EKS is the managed service hosting it. Cluster size, Kubernetes version, and compute mode are not selected yet.
+Kubernetes is the orchestration system; EKS is the managed service hosting it. The selected version and single-worker development configuration are documented in the [EKS guide](eks.md).
 
 [Official EKS overview](https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html).
 
 # Application Load Balancer (ALB)
 
-**Status: planned; Lambda does not call a load balancer yet.**
+**Status: private ALB provisioned and verified; Lambda does not call it yet.**
 
 ## What it is and what it does
 
@@ -439,7 +439,7 @@ An ALB routes HTTP/HTTPS requests to registered healthy targets.
 
 ## Why and how we plan to use it
 
-The target architecture uses it between Lambda and the FastAPI service so callers do not need to know individual pod addresses. Listener configuration, target registration, health checks, and private connectivity will be defined through infrastructure as code.
+The internal ALB forwards HTTP to worker NodePort 30800, which Kubernetes routes to FastAPI pods. Terraform attaches its target group to the EKS Auto Scaling group so replacement workers register automatically. Scoped security groups restrict access; health and assessment checks passed through the ALB. See the [ALB guide](alb.md).
 
 ## Small example
 
@@ -447,13 +447,13 @@ The target architecture uses it between Lambda and the FastAPI service so caller
 Lambda request -> ALB -> healthy FastAPI target
 ```
 
-Private network access, certificates, and any required Kubernetes controller have not been configured. The diagram shows the intended destination architecture, not an active connection.
+Private network access is configured. The listener currently uses HTTP; an internal TLS certificate and Lambda connection are not implemented. This instance-target design does not install an ingress controller.
 
 [Official ALB introduction](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html).
 
 # Amazon VPC, Subnets, and Security Groups
 
-**Status: application-specific networking is planned.**
+**Status: existing default VPC/subnets reused; private ALB access rules provisioned. Lambda VPC attachment remains pending.**
 
 ## What they are and what they do
 
@@ -461,7 +461,7 @@ A VPC is a logical network. Subnets divide its address space, and security group
 
 ## Why and how we plan to use them
 
-They will connect Lambda, the load balancer, and EKS while limiting permitted network paths. We must design private access, outbound service access, and security-group rules before deploying those components. Terraform/Terragrunt will manage the configuration.
+Terraform/Terragrunt reuse the existing network and manage dedicated ALB/client security groups plus a scoped worker ingress rule. The ALB accepts HTTP only from EKS and the reserved client group, and forwards only to worker port 30800. No new VPC, subnet, route, or NAT gateway is created.
 
 ## Small example
 
@@ -469,7 +469,7 @@ They will connect Lambda, the load balancer, and EKS while limiting permitted ne
 Lambda security group -> permitted service port -> internal ALB -> FastAPI targets
 ```
 
-This is illustrative. Lambda is not currently attached to a project VPC, and no project EKS/ALB network has been created.
+The ALB-to-FastAPI portion is deployed and verified. Lambda is not yet attached to the VPC or dedicated ALB client group.
 
 # Snowflake and SQL
 
