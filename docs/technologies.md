@@ -70,7 +70,7 @@ Terragrunt loads development settings and runs Terraform against the Lambda/API 
 
 ## What it is and what it does
 
-Python is the programming language used for our request-handling logic and tests. It is also the planned language for FastAPI and Streamlit.
+Python is the programming language used for our request-handling logic, tests, FastAPI service, and local Streamlit interface.
 
 ## Why and how we use it
 
@@ -322,7 +322,7 @@ The current `status: validated` Lambda response is not this future assessment re
 
 # Streamlit
 
-**Status: planned in this repository.**
+**Status: installed and tested locally; cloud hosting and authenticated API integration remain planned.**
 
 ## What it is and what it does
 
@@ -330,12 +330,12 @@ Streamlit is a Python framework for interactive data applications.
 
 ## Why and how we plan to use it
 
-It will give the clinical operations team a web interface to upload aggregate site data, review sites, and inspect risk results and explanations. Its server will authenticate to our API with a dedicated role. Hosting, upload handling, and interface code still need implementation.
+`services/streamlit_ui/app.py` provides a simple JSON text box prefilled with synthetic site data, an assessment button, and a readable risk level and reasons. It calls local FastAPI so classification and field validation stay in the existing service. Streamlit `1.66.1` is isolated in the UI's own requirements file and virtual environment. Its future hosted server will authenticate to API Gateway using a dedicated role; that integration is not implemented yet. See the [local Streamlit guide](streamlit.md).
 
 ## Small example
 
 ```text
-User selects a CSV -> Streamlit validates rows -> server submits records -> results table
+User pastes JSON -> Streamlit calls local FastAPI -> risk level and contributing reasons
 ```
 
 That is a planned flow. The current API accepts one JSON record, not CSV/Excel files or batches. Files in the separate Equipment_SME project are not this project's Streamlit implementation.
