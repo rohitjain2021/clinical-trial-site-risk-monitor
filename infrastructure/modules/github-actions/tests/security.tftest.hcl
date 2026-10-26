@@ -1,4 +1,7 @@
 mock_provider "aws" {
+  mock_data "aws_iam_policy" {
+    defaults = { policy = "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"ec2:DescribeInstances\"],\"Resource\":\"*\"}]}" }
+  }
   mock_resource "aws_iam_openid_connect_provider" {
     defaults = {
       arn = "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
@@ -23,6 +26,20 @@ variables {
 
 run "scoped_github_access" {
   command = apply
+
+  assert {
+    condition     = one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "CreateTaggedDemoCluster"]).Action == "eks:CreateCluster" && one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "CreateTaggedDemoCluster"]).Condition.StringEquals["aws:RequestTag/Name"] == local.demo_cluster_name && one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "CreateTaggedDemoCluster"]).Condition.StringEquals["aws:RequestedRegion"] == local.region
+    error_message = "Cluster creation's required wildcard must be restricted to the exact demo tags and region."
+  }
+
+  assert {
+    condition     = length(aws_iam_role_policy.demo.policy) < 10240 && jsondecode(aws_iam_role.demo.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == jsondecode(aws_iam_role.deployment.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]
+    error_message = "The demo role must fit IAM limits and retain exact main-only OIDC trust."
+  }
+  assert {
+    condition     = toset(one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "DemoState"]).Resource) == toset(["${local.state_bucket_arn}/dev/eks/terraform.tfstate", "${local.state_bucket_arn}/dev/demo-app/terraform.tfstate"]) && alltrue([for key, role in local.demo_role_arns : one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "CreateBounded${title(key)}Role"]).Condition.StringEquals["iam:PermissionsBoundary"] == local.demo_boundaries[key]])
+    error_message = "Demo state access and role creation must be restricted to the two bounded demo units."
+  }
 
   assert {
     condition     = length(jsondecode(aws_iam_role_policy.image_publish.policy).Statement) == 2 && jsondecode(aws_iam_role_policy.image_publish.policy).Statement[0].Action == "ecr:GetAuthorizationToken" && jsondecode(aws_iam_role_policy.image_publish.policy).Statement[0].Resource == "*" && jsondecode(aws_iam_role_policy.image_publish.policy).Statement[0].Condition.StringEquals["aws:RequestedRegion"] == "us-east-1"

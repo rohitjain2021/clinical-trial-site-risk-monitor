@@ -41,6 +41,8 @@ See the [development setup guide](docs/setup.md) for installation and verificati
 
 GitHub Actions runs checks on pull requests and produces a development deployment plan on `main`. An explicit manual workflow run deploys the Lambda through Terragrunt and Terraform, using OIDC authentication and S3 state locking. See the [CI/CD guide](docs/cicd.md) for workflow behavior and AWS permissions.
 
+The manual [Start/Stop demo flow](docs/demo.md) creates, verifies, and removes a disposable EKS/FastAPI environment. Encrypted operator settings are configured; its first live cycle is pending merge and supervised execution. No EKS cluster is running.
+
 ## API
 
 The development HTTP API provides authenticated `GET /health` and `POST /site-assessments` routes. Site submissions support validation only; storage and risk analysis will be added later. See the [API guide](docs/api.md) for the contract, authentication, and example data.
@@ -57,7 +59,12 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [x] Provision the private [ECR risk-service repository](docs/ecr.md) through Terraform and Terragrunt.
 - [x] Configure scoped image publishing to ECR through GitHub Actions (manual run on `main`).
 - [x] Run the publishing workflow after merge and verify the first commit-tagged image in ECR.
-- [ ] Provision EKS, networking, and load balancing through Terraform and Terragrunt.
+- [x] Prepare and validate the [EKS Terraform plan and running costs](docs/eks.md), reusing the existing default VPC and subnets.
+- [x] Implement manual Start/Stop demo workflow with scoped Terraform deployment and cleanup.
+- [x] Configure encrypted demo operator settings in GitHub Actions.
+- [ ] Merge and verify a supervised Start/Stop cycle.
+- [ ] Review and approve the EKS plan, then provision through Terraform and Terragrunt.
+- [ ] Add application load balancing through infrastructure as code.
 - [ ] Deploy the risk service and connect Lambda to it.
 - [ ] Add Snowflake storage for trial-site data and assessment results.
 - [ ] Build the Streamlit interface for data uploads, site summaries, and risk results.
@@ -68,6 +75,14 @@ The Lambda and authenticated API Gateway are deployed. Site submissions currentl
 - [x] Update the architecture diagram with GitHub Actions, Docker, ECR, service connections, and implemented versus planned components.
 
 ## Documentation
+
+### Start/Stop Demo
+
+[Read the demo guide](docs/demo.md) for session setup, the manual workflow, private FastAPI access, cleanup, and cost boundaries.
+
+### EKS Planning
+
+[Read the EKS guide](docs/eks.md) for the existing network, proposed cluster, operator access, cost estimate, and cleanup boundaries.
 
 ### Container Registry
 

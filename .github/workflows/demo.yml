@@ -1,0 +1,81 @@
+name: Start or stop demo
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Start incurs EKS charges; Stop removes the demo application and EKS stack'
+        type: choice
+        options: [start, stop]
+        default: stop
+        required: true
+      image_commit:
+        description: 'Full previously published image commit SHA (used only for Start)'
+        type: string
+        default: '817b71ca41138e6ffe07d68aeffe67ee6705c817'
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: clinical-trial-site-risk-monitor-dev-demo
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-1
+  AWS_DEFAULT_REGION: us-east-1
+  TF_IN_AUTOMATION: 'true'
+  TF_INPUT: 'false'
+
+jobs:
+  demo:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT_AWS_ACCOUNT_ID: ${{ secrets.PROJECT_AWS_ACCOUNT_ID }}
+      PROJECT_TF_STATE_BUCKET: ${{ secrets.PROJECT_TF_STATE_BUCKET }}
+      PROJECT_EKS_ADMIN_PRINCIPAL_ARN: ${{ secrets.PROJECT_EKS_ADMIN_PRINCIPAL_ARN }}
+      PROJECT_EKS_ADMIN_CIDR: ${{ secrets.PROJECT_EKS_ADMIN_CIDR }}
+      DEMO_ACTION: ${{ inputs.action }}
+      DEMO_IMAGE_COMMIT: ${{ inputs.image_commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, Node 24
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-tools
+      - name: Check and mask private configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in PROJECT_AWS_ACCOUNT_ID PROJECT_TF_STATE_BUCKET PROJECT_EKS_ADMIN_PRINCIPAL_ARN PROJECT_EKS_ADMIN_CIDR; do
+            test -n "${!key}"
+            echo "::add-mask::${!key}"
+          done
+      - name: Authenticate demo role using OIDC
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.PROJECT_AWS_ACCOUNT_ID }}:role/clinical-trial-site-risk-monitor-dev-github-demo
+          aws-region: us-east-1
+          allowed-account-ids: ${{ secrets.PROJECT_AWS_ACCOUNT_ID }}
+          mask-aws-account-id: true
+          role-duration-seconds: 3600
+          role-session-name: demo-${{ github.run_id }}
+      - name: Execute selected Terraform demo operation
+        run: python scripts/demo.py
+      - name: Report result and cleanup reminder
+        if: always()
+        env:
+          RESULT: ${{ job.status }}
+        shell: bash
+        run: |
+          {
+            echo "Demo operation: $DEMO_ACTION. Result: $RESULT."
+            echo 'Start deploys and verifies private FastAPI only; Streamlit and ALB integration remain planned.'
+            echo 'A successful Start keeps EKS running and charging until you run this workflow with Stop.'
+            echo 'No automatic timer is configured. After failure or cancellation, run Stop and verify cleanup.'
+          } >> "$GITHUB_STEP_SUMMARY"
