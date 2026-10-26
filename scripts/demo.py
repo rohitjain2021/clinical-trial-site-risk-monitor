@@ -161,11 +161,16 @@ def stop():
 
 
 def verify_cleanup():
-    """Check AWS for leftover cluster, tagged workers, and root volumes after Stop."""
+    """Check AWS directly for demo resources, including roles lost from interrupted state writes."""
     result = subprocess.run(["aws", "eks", "describe-cluster", "--name", CLUSTER],
                             cwd=ROOT, capture_output=True, text=True, timeout=60)
     if result.returncode == 0 or "ResourceNotFoundException" not in result.stderr:
         raise RuntimeError("Cluster deletion could not be confirmed; inspect AWS before assuming charges ended")
+    for suffix in ("control-plane", "nodes", "vpc-cni"):
+        result = subprocess.run(["aws", "iam", "get-role", "--role-name", f"{CLUSTER}-{suffix}"],
+                                cwd=ROOT, capture_output=True, text=True, timeout=60)
+        if result.returncode == 0 or "NoSuchEntity" not in result.stderr:
+            raise RuntimeError("Demo IAM role cleanup could not be confirmed; recover leftovers into Terraform before retrying Start")
     instances = json.loads(run([
         "aws", "ec2", "describe-instances", "--filters",
         "Name=tag:Project,Values=clinical-trial-site-risk-monitor",

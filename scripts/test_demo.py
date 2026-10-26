@@ -1,9 +1,10 @@
 """Check the safety rules protecting demo Start and Stop operations."""
 
 import unittest
+from subprocess import CompletedProcess
 from unittest.mock import call, patch
 
-from scripts.demo import validate_plan, stop
+from scripts.demo import validate_plan, stop, verify_cleanup
 
 
 class DemoSafetyTests(unittest.TestCase):
@@ -60,6 +61,34 @@ class DemoSafetyTests(unittest.TestCase):
         stop()
         apply.assert_not_called()
         verify.assert_called_once()
+
+    @patch("scripts.demo.run")
+    @patch("scripts.demo.subprocess.run")
+    def test_cleanup_rejects_orphan_role(self, command, run):
+        """Catch an AWS role missing from Terraform state so the next Start cannot collide."""
+        command.side_effect = [CompletedProcess([], 1, stderr="ResourceNotFoundException"),
+                               CompletedProcess([], 0, stdout="{}")]
+        with self.assertRaisesRegex(RuntimeError, "recover leftovers into Terraform"):
+            verify_cleanup()
+        run.assert_not_called()
+
+    @patch("scripts.demo.run")
+    @patch("scripts.demo.subprocess.run")
+    def test_cleanup_checks_absence_in_aws(self, command, run):
+        """Confirm cluster, three roles, workers, and disks are absent before reporting success."""
+        command.side_effect = [CompletedProcess([], 1, stderr="ResourceNotFoundException")] + [
+            CompletedProcess([], 1, stderr="NoSuchEntity") for _ in range(3)]
+        run.side_effect = ['{"Reservations": []}', '{"Volumes": []}']
+        verify_cleanup()
+        self.assertEqual(command.call_count, 4)
+
+    @patch("scripts.demo.subprocess.run")
+    def test_cleanup_rejects_role_lookup_denial(self, command):
+        """Treat denied IAM reads as unknown cleanup status rather than an absent role."""
+        command.side_effect = [CompletedProcess([], 1, stderr="ResourceNotFoundException"),
+                               CompletedProcess([], 1, stderr="AccessDenied")]
+        with self.assertRaisesRegex(RuntimeError, "could not be confirmed"):
+            verify_cleanup()
 
 
 if __name__ == "__main__":

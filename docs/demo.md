@@ -1,6 +1,6 @@
 # Start and Stop the Development Demo
 
-**Status: implemented and locally validated; IAM bootstrap applied and encrypted GitHub operator settings configured. Merge and a first supervised Start/Stop test are still required. No EKS resources are running.**
+**Status: workflow merged; IAM bootstrap and encrypted operator settings configured. Supervised cloud testing exposed launch-permission and interrupted-state cleanup issues. Their fixes are under validation; a successful complete Start/Stop cycle is still required. Check Actions for current running resources.**
 
 Use **Actions → Start or stop demo → Run workflow** on `main`. Choose `start` before a session and `stop` afterward. The workflow is manual only, defaults to Stop, and serializes operations so Start and Stop cannot overlap. It does not run when you push code or open a pull request.
 
@@ -26,7 +26,7 @@ Then open `http://127.0.0.1:8000/docs` locally. Keep kubeconfig, endpoints, and 
 
 1. Reads only the two demo state keys. If application resources exist, it updates only the existing cluster's API allowlist for the new GitHub runner; its targeted plan must not create any resources.
 2. Destroys the Terraform application unit while Kubernetes is available, then destroys the EKS unit. Destroy plans are checked against a fixed resource-address allowlist and may only delete owned resources.
-3. Confirms empty demo states, an absent EKS cluster, and no remaining project-tagged worker instances or root disks. A repeated Stop is safe; it does not recreate an absent cluster.
+3. Confirms empty demo states, an absent EKS cluster and its three service roles, and no remaining project-tagged worker instances or root disks. A repeated Stop is safe; it does not recreate an absent cluster.
 
 The existing default VPC/subnets/routes, ECR repository/images, Lambda/API, GitHub IAM bootstrap, and Terraform backend remain. Retained resources can still have their own costs. The current application creates no load balancer or persistent volume. If those are added later, their cleanup must be added and tested before describing Stop as covering them.
 
@@ -55,7 +55,13 @@ Keep those values outside source control. They identify the AWS operator/account
 
 The two operator settings were encrypted with GitHub's public key and uploaded with explicit user authorization on October 25, 2026. Only secret metadata was read back; plaintext values are not in source or documentation.
 
-Once changes are merged, first verify Stop on the empty environment, then perform one supervised Start/Stop cycle before relying on the flow for a demonstration. No first live cycle has been run during implementation.
+Stop has passed against the development environment. Start has been attempted, but a complete successful rollout and Stop cycle must pass before relying on this flow for a demonstration.
+
+### Recovery after an interrupted apply
+
+Cancellation can leave AWS resources that are missing from Terraform state. In the first supervised cycle, the CNI role, its policy attachment, and its OIDC provider remained after an interrupted apply. A later Start collided with the existing role. The operator verified the exact project tags and imported those three resources into their original EKS Terraform addresses, reviewed a destroy-only saved plan, and applied it through Terragrunt. No shared network or application resources were deleted.
+
+Do not delete such resources manually or remove more state to hide the conflict. Inspect ownership privately, recover the resources into the matching Terraform addresses, and review the cleanup plan. Stop now checks the three named service roles directly in AWS and fails if a role exists or its absence cannot be verified. This catches role leftovers even when the EKS state is empty.
 
 ## Validation
 
@@ -69,6 +75,6 @@ This policy is separate from worker-node runtime permissions and fits outside IA
 
 Terraform's IAM role deletion also requires `iam:ListInstanceProfilesForRole`. The demo role grants that read action only on its three service-role ARNs so Stop can complete role cleanup after deleting EKS.
 
-Eight Python lifecycle safety tests cover deletion scope, creation rejection during Stop, no infrastructure replacement during Start, application-first cleanup, and repeated Stop. Six mocked Terraform runs cover the EKS configuration, application hardening/digest pinning, main-only IAM trust, scoped state, and bounded role creation. Both workflow files pass actionlint. The verification Job's exact HTTP-check code also passed against a local hardened Docker container, with its service URL redirected to the local test port.
+Eleven Python lifecycle safety tests cover deletion scope, creation rejection during Stop, no infrastructure replacement during Start, application-first cleanup, repeated Stop, orphan-role detection, and denied cleanup reads. Six mocked Terraform runs cover the EKS configuration, application hardening/digest pinning, main-only IAM trust, scoped state, and bounded role creation. Both workflow files pass actionlint. The verification Job's exact HTTP-check code also passed against a local hardened Docker container, with its service URL redirected to the local test port.
 
 AWS IAM simulation confirmed tagged demo creation and deletion of the named cluster are allowed, while untagged creation, deletion of another cluster or a VPC, editing the demo role's own policy, and image pushes are denied. AWS Access Analyzer reported no findings for the corrected policy. These checks do not substitute for a real EKS rollout and cleanup test.
