@@ -67,6 +67,8 @@ The operator-managed GitHub-access stack now includes managed policy `clinical-t
 
 This policy is separate from worker-node runtime permissions and fits outside IAM's aggregate inline-policy quota. See [AWS's EKS custom-template requirements](https://docs.aws.amazon.com/eks/latest/userguide/launch-templates.html) and [EC2 launch-template authorization examples](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ExamplePolicies_EC2.html).
 
+Terraform's IAM role deletion also requires `iam:ListInstanceProfilesForRole`. The demo role grants that read action only on its three service-role ARNs so Stop can complete role cleanup after deleting EKS.
+
 Eight Python lifecycle safety tests cover deletion scope, creation rejection during Stop, no infrastructure replacement during Start, application-first cleanup, and repeated Stop. Six mocked Terraform runs cover the EKS configuration, application hardening/digest pinning, main-only IAM trust, scoped state, and bounded role creation. Both workflow files pass actionlint. The verification Job's exact HTTP-check code also passed against a local hardened Docker container, with its service URL redirected to the local test port.
 
 AWS IAM simulation confirmed tagged demo creation and deletion of the named cluster are allowed, while untagged creation, deletion of another cluster or a VPC, editing the demo role's own policy, and image pushes are denied. AWS Access Analyzer reported no findings for the corrected policy. These checks do not substitute for a real EKS rollout and cleanup test.

@@ -34,6 +34,11 @@ run "scoped_github_access" {
   command = apply
 
   assert {
+    condition     = contains(one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ManageDemoRoles"]).Action, "iam:ListInstanceProfilesForRole") && toset(one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ManageDemoRoles"]).Resource) == toset(values(local.demo_role_arns))
+    error_message = "Terraform role cleanup must be able to inspect profiles only for the three demo service roles."
+  }
+
+  assert {
     condition     = length(aws_iam_policy.demo_node_launch.policy) < 6144 && jsondecode(aws_iam_policy.demo_node_launch.policy).Statement[1].Condition.StringEquals["ec2:InstanceType"] == "t3.medium" && jsondecode(aws_iam_policy.demo_node_launch.policy).Statement[2].Condition.StringEquals["aws:ResourceTag/Name"] == "${local.demo_cluster_name}-nodes"
     error_message = "Node launches must stay small, use the named project template, and fit IAM policy limits."
   }
