@@ -24,6 +24,7 @@ locals {
     local.ecr_repository_arn,
     "arn:aws:ecr:${local.region}:602401143452:repository/amazon-k8s-cni",
     "arn:aws:ecr:${local.region}:602401143452:repository/amazon-k8s-cni-init",
+    "arn:aws:ecr:${local.region}:602401143452:repository/amazon/aws-network-policy-agent",
     "arn:aws:ecr:${local.region}:602401143452:repository/eks/kube-proxy",
     "arn:aws:ecr:${local.region}:602401143452:repository/eks/coredns"
   ]

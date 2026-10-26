@@ -34,6 +34,11 @@ run "scoped_github_access" {
   command = apply
 
   assert {
+    condition     = contains(jsondecode(aws_iam_policy.demo_nodes_boundary.policy).Statement[length(jsondecode(aws_iam_policy.demo_nodes_boundary.policy).Statement) - 1].Resource, "arn:aws:ecr:us-east-1:602401143452:repository/amazon/aws-network-policy-agent")
+    error_message = "The worker boundary must allow the exact AWS CNI network-policy agent image repository."
+  }
+
+  assert {
     condition     = one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ReadEksNodegroupServiceRole"]).Action == "iam:GetRole" && toset(one([for s in jsondecode(aws_iam_role_policy.demo.policy).Statement : s if s.Sid == "ReadEksNodegroupServiceRole"]).Resource) == toset(["arn:aws:iam::123456789012:role/AWSServiceRoleForAmazonEKSNodegroup", "arn:aws:iam::123456789012:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"])
     error_message = "GetRole must cover only the exact first-creation lookup and existing service-role ARNs, without wildcards or modification permissions."
   }

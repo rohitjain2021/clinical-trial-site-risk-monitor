@@ -55,6 +55,11 @@ run "restricted_development_cluster" {
   command = apply
 
   assert {
+    condition     = contains(jsondecode(aws_iam_role_policy.node_images.policy).Statement[1].Resource, "arn:aws:ecr:us-east-1:602401143452:repository/amazon/aws-network-policy-agent")
+    error_message = "Workers must pull the exact network-policy agent image required by the VPC CNI add-on."
+  }
+
+  assert {
     condition     = aws_eks_cluster.this.vpc_config[0].endpoint_private_access && aws_eks_cluster.this.vpc_config[0].endpoint_public_access && toset(aws_eks_cluster.this.vpc_config[0].public_access_cidrs) == toset(var.admin_cidrs) && toset(aws_eks_cluster.this.vpc_config[0].subnet_ids) == toset(["subnet-a", "subnet-b"])
     error_message = "Reuse the selected existing subnets and restrict public API access to the operator."
   }

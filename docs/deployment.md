@@ -24,6 +24,10 @@ The first deployment attempts exposed missing custom-template launch permissions
 
 Existing IAM resource names, Terraform addresses, the `dev/eks` and `dev/demo-app` state keys, and the Kubernetes application module are retained to avoid replacing infrastructure merely to rename it. The role's legacy `github-demo` name does not provide a Start/Stop lifecycle. The Lambda deployment role keeps its separate scope. Concurrency also retains its existing group so deployment cannot overlap an old lifecycle run.
 
+## Required Networking Image
+
+The VPC CNI also runs `aws-eks-nodeagent`, which pulls `amazon/aws-network-policy-agent` from the AWS-owned regional ECR registry. Both the worker role and its operator-managed permissions boundary must allow read-only pulls from that exact repository. Missing it caused `ImagePullBackOff` for the agent and pod sandbox network setup failures even though the worker group was active. The policies retain explicit repositories instead of granting general ECR image access. See [AWS network policy agent](https://github.com/aws/aws-network-policy-agent).
+
 ## Failed or Interrupted Deployment
 
 Inspect the error and rerun after fixing its cause. Failure leaves resources and Terraform state available for diagnosis. Deployment plans reject infrastructure deletion, replacement, and resources outside the existing project allowlist. Replacing the completed HTTP verification job is the sole permitted replacement.
