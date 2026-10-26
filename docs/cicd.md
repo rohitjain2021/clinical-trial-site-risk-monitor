@@ -26,7 +26,7 @@ Application Python is pinned to 3.13 in CI setup and the container image to matc
 
 ## AWS Trust and Permissions
 
-The separate [demo workflow](../.github/workflows/demo.yml) provides manual Start/Stop on `main` using its own Terraform-managed OIDC role. It deploys and verifies private FastAPI through the EKS and Kubernetes application units, or destroys those two units in order. The existing Lambda deployment role retains its original scope. See the [demo guide](demo.md) for one-time setup, costs, guarded cleanup, and current validation limits.
+The separate [EKS workflow](../.github/workflows/eks.yml) plans by default and deploys EKS plus private FastAPI when `deploy` is selected on a manual `main` run. It uses the existing scoped Terraform-managed OIDC role and keeps resources running after success or failure. The Lambda deployment role retains its original scope. See the [deployment guide](deployment.md).
 
 The [GitHub access Terraform module](../infrastructure/modules/github-actions/main.tf), deployed through `infrastructure/live/dev/github-actions`, creates:
 

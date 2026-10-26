@@ -1,6 +1,6 @@
 # EKS Development Plan
 
-**Status: Start/Stop workflow implemented, IAM bootstrap applied, and encrypted GitHub operator settings configured. No EKS cluster or worker nodes have been deployed; merge and the first end-to-end run are pending.**
+**Status: a control plane exists from the interrupted deployment; worker provisioning and full FastAPI rollout remain unverified. The replacement manual deployment workflow is prepared and requires merge to run on `main`.**
 
 Terraform defines the cluster in `infrastructure/modules/eks`; Terragrunt supplies development configuration in `infrastructure/live/dev/eks`. The cluster is named `clinical-trial-site-risk-monitor-dev-eks`. Supporting roles, worker nodes, root disks, launch template, and log group use the same project prefix.
 
@@ -20,11 +20,11 @@ This development design uses public worker subnets and does not add a NAT gatewa
 - Encrypted 20 GiB gp3 root disk, deleted with its worker, with project tags on the instance and volume.
 - IMDSv2 required, metadata hop limit one, and standard CPU credits to avoid surplus burst-credit charges.
 - Private Kubernetes API access for workers; public API access restricted to explicitly configured operator `/32` addresses.
-- Explicit operator and demo-workflow access entries instead of an implicit creator-admin grant.
+- Explicit operator and deployment-workflow access entries instead of an implicit creator-admin grant.
 - API, audit, authenticator, controller-manager, and scheduler logs with 14-day retention.
 - Managed VPC CNI, kube-proxy, and CoreDNS add-ons using versions compatible with the chosen Kubernetes minor. The plan resolves their current versions; inspect future version changes before applying.
 
-The Kubernetes cluster and node IAM roles receive the AWS-managed EKS policies needed for their respective services. All three service roles require operator-managed permissions boundaries. The demo workflow cannot edit those boundaries or its own permissions. The VPC CNI uses a separate IAM role restricted to the `kube-system/aws-node` service account, so worker-role credentials do not carry the CNI networking policy. These service-managed policies include discovery and networking actions that require broader AWS resource scopes; they are not administrator policies. See [node IAM roles](https://docs.aws.amazon.com/eks/latest/userguide/create-node-role.html) and [CNI service-account permissions](https://docs.aws.amazon.com/eks/latest/userguide/cni-iam-role.html).
+The Kubernetes cluster and node IAM roles receive the AWS-managed EKS policies needed for their respective services. All three service roles require operator-managed permissions boundaries. The deployment workflow cannot edit those boundaries or its own permissions. The VPC CNI uses a separate IAM role restricted to the `kube-system/aws-node` service account, so worker-role credentials do not carry the CNI networking policy. These service-managed policies include discovery and networking actions that require broader AWS resource scopes; they are not administrator policies. See [node IAM roles](https://docs.aws.amazon.com/eks/latest/userguide/create-node-role.html) and [CNI service-account permissions](https://docs.aws.amazon.com/eks/latest/userguide/cni-iam-role.html).
 
 Image-pull permissions are read-only and restricted to the project's ECR repository plus the four named core system-image repositories in [AWS's documented regional add-on registry](https://docs.aws.amazon.com/eks/latest/userguide/add-ons-images.html). The AWS-owned registry account ID in the module is public service metadata, not this project's account ID. Registry authentication uses a regional wildcard because ECR does not support repository scoping for that action. No image-push permissions are granted to workers.
 
@@ -36,7 +36,7 @@ The local planning setup uses the current operator IAM principal and the public 
 
 ## Plan Only
 
-Use operator credentials for local review. The existing Lambda GitHub deployment role has not been granted EKS provisioning permissions; a separate main-only demo role manages the disposable stacks. Its one-time bootstrap lives in the GitHub-access Terraform unit. Terragrunt uses the existing encrypted, locked S3 backend with key `dev/eks/terraform.tfstate`. See the [Start/Stop guide](demo.md) before deployment.
+Use operator credentials for local review. The existing Lambda GitHub deployment role has not been granted EKS provisioning permissions; a separate main-only role provisions EKS and the application. Its one-time bootstrap lives in the GitHub-access Terraform unit. Terragrunt uses the existing encrypted, locked S3 backend with key `dev/eks/terraform.tfstate`. See the [deployment guide](deployment.md) before deployment.
 
 From the repository root:
 
@@ -50,7 +50,7 @@ This step stops after plan review. Saved plans and state are private and ignored
 
 ## Estimated Running Cost
 
-Use this cluster only for active development sessions and destroy the EKS stack afterward. There is no guaranteed free worker or free EKS control plane; account credits or free-tier eligibility have not been verified. A stopped or removed worker does not stop the cluster's hourly charge.
+The cluster remains provisioned until an operator explicitly destroys it through Terraform. There is no guaranteed free worker or free EKS control plane; account credits or free-tier eligibility have not been verified. A stopped or removed worker does not stop the cluster's hourly charge.
 
 Illustrative `us-east-1` costs checked October 25, 2026, using the current Spot prices for `t3.medium` in the selected zones. The monthly column shows the cost of accidentally leaving it running for 730 hours, with one worker and no credits:
 
@@ -68,7 +68,7 @@ Worker rates were read through the EC2 Spot price-history API for Linux/UNIX in 
 
 ## Future Cleanup
 
-The intended lifecycle is **Start demo → test → Stop demo** through the manual workflow. Start verifies its resource plan before applying it; Stop destroys the application before EKS and verifies cleanup. No timed shutdown or idle detection is configured; the cluster will keep charging after a successful Start until Stop actually completes. Do not leave it unattended assuming it will stop itself.
+The manual workflow plans by default and applies when deployment is selected. Resources remain running after success or failure. There is no Start/Stop workflow or automatic destruction. When removal is explicitly requested, destroy the Kubernetes application unit before EKS through reviewed Terragrunt plans.
 
 Remove application ingresses/services and their controller-created load balancers while the cluster is still available. Then review a destroy plan for the EKS unit only. Terraform tracks the project cluster, node group, IAM roles, add-ons, launch template, and log group; EKS manages the corresponding worker instances, instance profile, and cluster security group. Root disks are set to delete on termination. Future persistent volumes or other retained data need a separate decision.
 
@@ -76,7 +76,7 @@ The default VPC, default subnets, routes, ECR repository, existing Lambda/API, a
 
 ## Validation
 
-Terraform validation and all three mocked EKS tests passed on October 25, 2026. Tests check restricted API access, explicit operator authorization, worker hardening and capacity, CNI role isolation, scoped image pulls, finite logs, and rejection of an open API or unsupported zone. Additional mocked application tests and lifecycle safety tests cover the private workload and Start/Stop guards. Workflow syntax and Terraform/Terragrunt formatting passed locally. GitHub execution and actual cluster deployment remain unverified until the changes are merged and activated.
+Terraform validation and all three mocked EKS tests passed on October 25, 2026. Tests check restricted API access, explicit operator authorization, worker hardening and capacity, CNI role isolation, scoped image pulls, finite logs, and rejection of an open API or unsupported zone. Additional mocked application tests and deployment safety tests cover the private workload, plan-only behavior, and rejection of destructive deployment plans. Workflow syntax and Terraform/Terragrunt formatting passed locally. The replacement workflow requires a merged-main live run before claiming successful worker and application deployment.
 
 The reviewed live EKS plan proposes **19 additions, zero changes, and zero deletions**:
 
@@ -90,9 +90,9 @@ The reviewed live EKS plan proposes **19 additions, zero changes, and zero delet
 | Managed service-policy attachments | 3 |
 | Scoped image-pull inline policy | 1 |
 | Cluster OIDC provider for the CNI service account | 1 |
-| Operator and demo-workflow access entries and policy associations | 4 |
+| Operator and deployment-workflow access entries and policy associations | 4 |
 | Control-plane log group | 1 |
 
 The plan resolves CoreDNS `v1.14.7-eksbuild.22`, kube-proxy `v1.36.0-eksbuild.58`, and VPC CNI `v1.23.2-eksbuild.8`. It contains no managed VPC, subnet, route, gateway, or shared subnet-tag resources. EKS-created worker instances and the cluster security group are service-managed children rather than additional Terraform resource entries.
 
-The private reviewed EKS plan is saved locally at `infrastructure/state/dev-eks.tfplan`; operator access settings remain in ignored `eks.local.hcl`. No EKS apply was executed. Separately, the reviewed three-resource IAM-only bootstrap was applied through Terragrunt and followed by a no-change plan. Regenerate and review the EKS plan if configuration, operator IP, version compatibility, shared networking, or pricing changes before deployment.
+The private reviewed EKS plan is saved locally at `infrastructure/state/dev-eks.tfplan`; operator access settings remain in ignored `eks.local.hcl`. EKS applies were attempted; the interrupted run created the control plane but no worker group. Its partially persisted state has been recovered using exact ownership-checked Terraform imports; a fresh plan is required before resuming. Separately, the reviewed three-resource IAM-only bootstrap was applied through Terragrunt and followed by a no-change plan. Regenerate and review the EKS plan if configuration, operator IP, version compatibility, shared networking, or pricing changes before deployment.
