@@ -2,6 +2,8 @@
 
 A prototype for monitoring clinical trial site performance using rule-based risk scoring and AI-generated explanations.
 
+**Live demo:** [Open the Clinical Trial Site Risk Monitor](https://clinical-trial-site-risk-monitor.streamlit.app/). Use synthetic data only.
+
 ## Problem Statement
 
 One clinical trial can run across several hospitals, clinics, and research sites. Each site has patient enrollment targets, study deadlines, and operational issues to resolve.
