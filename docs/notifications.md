@@ -59,10 +59,10 @@ A successful publish means SNS accepted the message; it does not prove inbox del
 
 Unit tests cover the exact topic, minimal message content, successful/unavailable AI events, disabled/invalid inputs, safe failure logging, and preserving the real FastAPI response after an SNS timeout. Mocked Terraform tests cover email confirmation, the HTTPS-only resource policy, exact IAM scope, and the topic environment variable. Container tests run without live SNS settings, so CI never sends email.
 
-The diagram keeps the notification branch marked planned until the new application image is deployed and the hosted assessment-to-email flow is verified. The infrastructure and local integration verification status should be recorded separately from the production rollout.
+The architecture diagram shows the implemented SNS email subscription and CloudWatch SNS metrics. CloudWatch observes delivery metrics; it does not trigger these assessment emails.
 
 ## Verified Setup Status
 
 The reviewed Terraform plans created the topic, transport policy, and subscription, updated the application permissions boundary, and added the exact publisher policy. The recipient confirmed the subscription. Access Analyzer reported zero findings on the IAM/topic policies, and IAM simulation allowed the project topic while denying an unrelated topic.
 
-A real local FastAPI assessment called Nova Micro, returned High with five reasons and an available explanation, and published its status event. The recipient confirmed receipt of the demo email. The new image is not yet deployed on EKS; hosted assessment notifications remain pending the post-merge publication/deployment steps above.
+A real local FastAPI assessment called Nova Micro, returned High with five reasons and an available explanation, and published its status event. The recipient confirmed receipt of the demo email. The updated image was subsequently published and the EKS deployment workflow completed successfully. The notification branch is implemented and deployed; the Streamlit assessment-to-inbox check remains the final hosted demonstration check.

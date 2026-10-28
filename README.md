@@ -39,11 +39,11 @@ The goal is to make a site's operational status easy to review without manually 
 
 ## Architecture
 
-![Clinical Trial Site Risk Monitor architecture showing the verified Streamlit, API Gateway, Lambda, internal ALB, EKS/FastAPI, and Nova Micro connection, with ECR image delivery, planned Snowflake storage, and planned SNS email notifications](docs/images/clinical-trial-site-risk-monitor-architecture.png)
+![Clinical Trial Site Risk Monitor architecture showing Streamlit, API Gateway, Lambda, internal ALB, EKS/FastAPI, Nova Micro, ECR image delivery, implemented SNS email notifications with a confirmed subscription and CloudWatch SNS metrics, and planned Snowflake storage](docs/images/clinical-trial-site-risk-monitor-architecture.png)
 
 Terragrunt manages environment configuration and orchestrates Terraform, which provisions the AWS infrastructure shown above.
 
-The working request path is Streamlit Community Cloud -> API Gateway -> Lambda -> internal ALB -> FastAPI on EKS. FastAPI calculates the risk using Python rules and calls Amazon Bedrock Nova Micro for a separate explanation. The hosted UI and AI response are verified. GitHub Actions publishes the container to ECR; Terraform and Terragrunt manage AWS infrastructure. Snowflake storage remains planned. The SNS notification branch has been implemented and tested locally, including a confirmed demo email. Its hosted application rollout remains pending; the diagram marks that branch as planned until the updated image is deployed.
+The working request path is Streamlit Community Cloud -> API Gateway -> Lambda -> internal ALB -> FastAPI on EKS. FastAPI calculates the risk using Python rules and calls Amazon Bedrock Nova Micro for a separate explanation. The hosted UI and AI response are verified. GitHub Actions publishes the container to ECR; Terraform and Terragrunt manage AWS infrastructure. After a Bedrock assessment attempt, FastAPI publishes an event to Amazon SNS for delivery to the confirmed email subscription. This notification functionality is implemented and deployed. CloudWatch provides SNS publish, delivery, and failure metrics; emails are sent directly by SNS, without a CloudWatch alarm. Snowflake storage remains planned.
 
 ## Development Setup
 
