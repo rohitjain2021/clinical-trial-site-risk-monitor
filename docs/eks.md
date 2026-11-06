@@ -1,6 +1,6 @@
 # EKS Development Plan
 
-**Status: EKS and its worker group are active, with FastAPI deployed privately. The main deployment workflow passed, and the separately provisioned internal ALB passed health, assessment, cache-control, and invalid-input checks. Resources remain provisioned until explicit teardown. See the [ALB guide](alb.md).**
+**Status: EKS, its worker group, FastAPI, and the internal ALB were intentionally removed through Terraform on November 6, 2026, for cost control. See the [verified teardown record and rebuild runbook](teardown-and-rebuild.md). The deployment and validation notes below describe the previous working environment and its reusable configuration.**
 
 Terraform defines the cluster in `infrastructure/modules/eks`; Terragrunt supplies development configuration in `infrastructure/live/dev/eks`. The cluster is named `clinical-trial-site-risk-monitor-dev-eks`. Supporting roles, worker nodes, root disks, launch template, and log group use the same project prefix.
 

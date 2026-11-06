@@ -2,6 +2,8 @@
 
 A prototype for monitoring clinical trial site performance using rule-based risk scoring and AI-generated explanations.
 
+**Backend offline for cost control:** EKS, its worker, and the internal ALB were removed through Terraform on November 6, 2026. The Streamlit page can remain hosted, but live assessments require rebuilding the backend. Source code, state, and the container image are retained. See the [teardown and rebuild runbook](docs/teardown-and-rebuild.md).
+
 **Live demo:** [Open the Clinical Trial Site Risk Monitor](https://clinical-trial-site-risk-monitor.streamlit.app/). Use synthetic data only.
 
 ## Problem Statement
@@ -43,7 +45,7 @@ The goal is to make a site's operational status easy to review without manually 
 
 Terragrunt manages environment configuration and orchestrates Terraform, which provisions the AWS infrastructure shown above.
 
-The working request path is Streamlit Community Cloud -> API Gateway -> Lambda -> internal ALB -> FastAPI on EKS. FastAPI calculates the risk using Python rules and calls Amazon Bedrock Nova Micro for a separate explanation. The hosted UI and AI response are verified. GitHub Actions publishes the container to ECR; Terraform and Terragrunt manage AWS infrastructure. After a Bedrock assessment attempt, FastAPI publishes an event to Amazon SNS for delivery to the confirmed email subscription. This notification functionality is implemented and deployed. CloudWatch provides SNS publish, delivery, and failure metrics; emails are sent directly by SNS, without a CloudWatch alarm. Snowflake storage remains planned.
+The architecture's request path is Streamlit Community Cloud -> API Gateway -> Lambda -> internal ALB -> FastAPI on EKS. FastAPI calculates the risk using Python rules and calls Amazon Bedrock Nova Micro for a separate explanation. The hosted UI and AI response were verified before the intentional backend teardown. GitHub Actions publishes the container to ECR; Terraform and Terragrunt manage AWS infrastructure. After a Bedrock assessment attempt, FastAPI publishes an event to Amazon SNS for delivery to the confirmed email subscription. This notification functionality is implemented; assessments and notifications resume after rebuilding the backend. CloudWatch provides SNS publish, delivery, and failure metrics; emails are sent directly by SNS, without a CloudWatch alarm. Snowflake storage remains planned. The diagram describes the implemented design, not currently running backend resources.
 
 ## Development Setup
 
@@ -55,13 +57,17 @@ GitHub Actions runs checks on pull requests and produces a development deploymen
 
 The manual [EKS deployment workflow](docs/deployment.md) plans by default and provisions EKS/FastAPI when deployment is explicitly selected. Resources remain running; there is no Start/Stop lifecycle or automatic destruction. The main-branch EKS/FastAPI workflow has passed. The separate operator-run ALB unit has also passed private HTTP verification; see the [ALB guide](docs/alb.md).
 
-**Development status:** FastAPI and Nova Micro explanations are deployed. Signed API tests returned the expected High, Medium, and Low results with available AI explanations. The hosted Streamlit page also displays the AI response. Health, cache-control, and invalid-input checks passed. Resources remain running until teardown is explicitly requested.
+**Development status:** The testing backend was intentionally removed for cost control. Before teardown, signed API tests returned the expected High, Medium, and Low results with available AI explanations; hosted Streamlit scoring, health, cache-control, and invalid-input checks passed. Rebuild EKS/FastAPI and the ALB, then reconnect Lambda to restore assessments.
 
 ## API
 
 The development HTTP API provides authenticated `GET /health` and `POST /site-assessments` routes. Lambda validates site records and calls FastAPI through the private ALB to return prototype risk levels, reasons, and an optional Nova Micro explanation. AI text does not determine or change the score; if the model is unavailable, the calculated risk result still returns. Records are not stored. See the [API guide](docs/api.md) for the contract, authentication, and example data.
 
 ## Documentation
+
+### Testing Environment Teardown and Rebuild
+
+[Read the teardown and rebuild plan](docs/teardown-and-rebuild.md) for removing the running EKS, worker, and ALB resources, retaining the prerequisites, and recreating the backend for a demonstration.
 
 ### Assessment Email Notifications
 
