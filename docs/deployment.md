@@ -4,6 +4,8 @@ Use **Actions → Deploy EKS and risk service → Run workflow** on `main`. Depl
 
 ## Current Validation Status
 
+The testing backend was intentionally removed through Terraform on November 6, 2026. EKS, workers, FastAPI, and the ALB are offline. See the [teardown record and rebuild runbook](teardown-and-rebuild.md) for the retained prerequisites and restoration order. The following validation describes the environment before teardown.
+
 EKS, its worker group, and private FastAPI are provisioned. The main-branch deployment workflow passed its in-cluster HTTP verification after the verification pod was excluded from application Service routing.
 
 The internal ALB was subsequently provisioned through a reviewed operator Terraform plan. Its target is healthy and the real verification job passed health, High-risk assessment, cache-control, and invalid-input checks through the ALB endpoint. Both jobs use the same verifier, with distinct pod labels and bounded startup retries. See the [ALB guide](alb.md).
